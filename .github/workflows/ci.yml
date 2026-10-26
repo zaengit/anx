@@ -41,5 +41,11 @@ jobs:
       - name: Run JVM smoke test
         run: bash tests/smoke.sh
 
+      - name: Test malformed binary manifest handling
+        run: python3 tests/manifest-safety.py
+
+      - name: Run framework lifecycle and event loop tests
+        run: bash tests/framework-smoke.sh
+
       - name: Run APK inspection smoke test
         run: bash tests/apk-inspect-smoke.sh

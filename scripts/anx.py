@@ -60,7 +60,9 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None) ->
 
     class_path = os.pathsep.join((str(framework_dex.resolve()), str(metadata.path)))
     command = [executable, "-cp", class_path,
-               "org.anx.launcher.Main", manifest.launcher_activity or ""]
+               "org.anx.launcher.Main", manifest.launcher_activity or "",
+               manifest.package_name, manifest.application_name or "-",
+               str(metadata.path)]
     environment = os.environ.copy()
     environment["ANDROID_DATA"] = str(data_dir.resolve())
     print(f"[anx] ART: {executable}", flush=True)

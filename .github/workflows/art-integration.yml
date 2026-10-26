@@ -1,0 +1,40 @@
+name: ART integration (reference)
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: art-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reference-art:
+    name: Build patched host ART and run separate APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+      - name: Install build tools for DEX and APK packaging
+        run: sdkmanager "build-tools;37.0.0" "platforms;android-36"
+      - name: Build and test with the patched ART reference
+        env:
+          CONTAINER_ENGINE: docker
+        run: bash scripts/run-art-alpine.sh
+      - name: Publish ART runtime diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: art-reference-logs
+          path: build/art-smoke/
+          if-no-files-found: ignore

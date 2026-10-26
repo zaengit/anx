@@ -24,6 +24,12 @@ the framework DEX and APK on its classpath, and the launcher class is selected
 from the manifest.
 
 The loader currently requires exactly one launcher Activity, one top-level
-DEX (`classes.dex`), and no native `.so` files. It does not yet resolve Android
-resources/assets, instantiate `Application`, or support multidex or JNI.
+DEX (`classes.dex`), and no native `.so` files. It instantiates the manifest `Application` class when provided, passes the APK
+path to a read-only `AssetManager` for `assets/` streams, and supports main-thread
+lifecycle and immediate Handler callbacks. It does not parse `resources.arsc`,
+load multidex or JNI, or create a graphical window.
 Malformed archives and unsupported inputs fail with a targeted error.
+
+Truncated UTF-8 string lengths in binary XML now raise a controlled
+`ManifestError`/`ApkError` rather than an uncaught `IndexError`; the
+standalone `tests/manifest-safety.py` regression runs in CI.
