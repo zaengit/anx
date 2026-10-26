@@ -61,6 +61,8 @@ def _u32(data: bytes, offset: int) -> int:
 
 
 def _length8(data: bytes, offset: int) -> tuple[int, int]:
+    if offset < 0 or offset >= len(data):
+        raise ManifestError("truncated UTF-8 string length")
     first = data[offset]
     offset += 1
     if first & 0x80:

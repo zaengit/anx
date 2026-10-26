@@ -29,3 +29,7 @@ path to a read-only `AssetManager` for `assets/` streams, and supports main-thre
 lifecycle and immediate Handler callbacks. It does not parse `resources.arsc`,
 load multidex or JNI, or create a graphical window.
 Malformed archives and unsupported inputs fail with a targeted error.
+
+Truncated UTF-8 string lengths in binary XML now raise a controlled
+`ManifestError`/`ApkError` rather than an uncaught `IndexError`; the
+standalone `tests/manifest-safety.py` regression runs in CI.
