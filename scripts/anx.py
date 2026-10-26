@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_FRAMEWORK_DEX = ROOT / "build" / "framework" / "classes.dex"
 
 
-def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None) -> int:
+def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
+         backend: str, wayland_binary: str | None) -> int:
     try:
         metadata = inspect_apk(apk)
     except ApkError as exc:
@@ -58,6 +59,24 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None) ->
         print(f"anx run: cannot create ANDROID_DATA {data_dir}: {exc}", file=sys.stderr)
         return 1
 
+    native = wayland_binary or os.environ.get("ANX_WAYLAND_BINARY") or str(
+        ROOT / "build" / "native" / "anx-wayland"
+    )
+    resolved_native = shutil.which(native)
+    if resolved_native is None:
+        native_path = Path(native).expanduser()
+        if native_path.is_file() and os.access(native_path, os.X_OK):
+            resolved_native = str(native_path.resolve())
+    selected_backend = backend
+    if selected_backend == "auto":
+        selected_backend = ("wayland" if os.environ.get("WAYLAND_DISPLAY")
+                            and resolved_native else "console")
+        if selected_backend == "console":
+            print("[anx] no compiled Wayland backend/session; using console backend", flush=True)
+    if selected_backend == "wayland" and not resolved_native:
+        print("anx run: Wayland executable missing. Run: bash scripts/build-wayland.sh",
+              file=sys.stderr)
+        return 1
     class_path = os.pathsep.join((str(framework_dex.resolve()), str(metadata.path)))
     command = [executable, "-cp", class_path,
                "org.anx.launcher.Main", manifest.launcher_activity or "",
@@ -65,6 +84,9 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None) ->
                str(metadata.path)]
     environment = os.environ.copy()
     environment["ANDROID_DATA"] = str(data_dir.resolve())
+    environment["ANX_BACKEND"] = selected_backend
+    if selected_backend == "wayland":
+        environment["ANX_WAYLAND_BINARY"] = resolved_native
     print(f"[anx] ART: {executable}", flush=True)
     print(f"[anx] package: {manifest.package_name}", flush=True)
     print(f"[anx] launcher: {manifest.launcher_activity}", flush=True)
@@ -85,7 +107,14 @@ def main() -> int:
     run_parser.add_argument("--art", default=os.environ.get("ART_CMD", "dalvikvm64"))
     run_parser.add_argument("--framework-dex", type=Path, default=DEFAULT_FRAMEWORK_DEX)
     run_parser.add_argument("--android-data", type=Path)
-    args = parser.parse_args()
+    run_parser.add_argument("--backend", choices=("auto", "console", "wayland"),
+                            default="auto")
+    run_parser.add_argument("--wayland-binary",
+                            help="path to compiled GTK4 Wayland host executable")
+    argv = sys.argv[1:]
+    if argv and not argv[0].startswith("-") and argv[0] not in ("inspect", "run"):
+        argv.insert(0, "run")
+    args = parser.parse_args(argv)
     if args.command == "inspect":
         try:
             print(format_metadata(inspect_apk(args.apk)))
@@ -93,7 +122,8 @@ def main() -> int:
         except ApkError as exc:
             print(f"anx inspect: {exc}", file=sys.stderr)
             return 1
-    return _run(args.apk, args.art, args.framework_dex, args.android_data)
+    return _run(args.apk, args.art, args.framework_dex, args.android_data,
+                args.backend, args.wayland_binary)
 
 
 if __name__ == "__main__":
