@@ -66,5 +66,7 @@ jobs:
         run: bash scripts/build-wayland.sh
       - name: Verify Java click and repaint protocol
         run: bash tests/gui-protocol-smoke.sh
+      - name: Verify delayed Handler callback and GUI repaint
+        run: bash tests/gui-timer-smoke.sh
       - name: Verify Wayland window under Weston headless
         run: bash tests/wayland-headless.sh

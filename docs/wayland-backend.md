@@ -54,3 +54,15 @@ to emulate a human pointer input event**.
 A manual desktop pointer click, focus, resize and long-running application
 tests are still required for the full interactive MVP acceptance gate.
 Unknown APKs are not safe: there is no application sandbox.
+
+## Main Looper during active GUI
+
+The native GTK4 host sends a bounded `PULSE` event every 50 milliseconds.
+The Java main thread handles the pulse by draining ready messages from its
+`Looper`, including delayed `Handler` callbacks. When the `TextView` label
+changes, the host writes a `TEXT` command to repaint GTK4. The `TimerActivity`
+fixture verifies an idle window repaints after `postDelayed` without any click,
+both on a JVM mock peer and on real host ART + Weston.
+
+This is a **coarse timer polling bridge**, not Android vsync, Choreographer,
+precision timers, a full event scheduler, or a guarantee for background tasks.

@@ -10,6 +10,7 @@ typedef struct {
     GtkWidget *window;
     GtkWidget *button;
     gboolean test_autoclick;
+    gboolean test_close_on_update;
     const char *title;
     const char *initial_label;
     const char *button_label;
@@ -36,6 +37,12 @@ static gboolean on_window_close(GtkWindow *window, gpointer user_data) {
     }
     return FALSE;
 }
+static gboolean on_pulse(gpointer user_data) {
+    HostWindow *state = user_data;
+    if (state->closing) return G_SOURCE_REMOVE;
+    announce(state, "PULSE");
+    return G_SOURCE_CONTINUE;
+}
 static gboolean click_for_test(gpointer user_data) {
     HostWindow *state = user_data;
     if (state->button != NULL && !state->closing)
@@ -52,7 +59,7 @@ static gboolean consume_line(HostWindow *state, const char *line) {
     if (valid && state->label != NULL) {
         char *text = g_strndup((const char *)decoded, length);
         gtk_label_set_text(GTK_LABEL(state->label), text);
-        if (state->test_autoclick) {
+        if (state->test_close_on_update) {
             /* Test verifies GTK's live label, not only the outgoing Java payload. */
             if (g_strcmp0(gtk_label_get_text(GTK_LABEL(state->label)), text) != 0) {
                 g_free(text);
@@ -121,6 +128,8 @@ static void on_activate(GtkApplication *app, gpointer user_data) {
                   on_stdin_readable, state);
     gtk_window_present(GTK_WINDOW(window));
     announce(state, "READY");
+    /* Keep the Java main Looper advancing while no input events arrive. */
+    g_timeout_add(50, on_pulse, state);
     /* CI-only: exercise a real, realized GTK button signal under Weston. */
     if (state->test_autoclick && state->button != NULL)
         g_timeout_add(300, click_for_test, state);
@@ -138,6 +147,8 @@ int main(int argc, char **argv) {
     state.button_label = argv[3];
     state.input = g_string_new(NULL);
     state.test_autoclick = g_strcmp0(g_getenv("ANX_GUI_TEST_AUTOCLICK"), "1") == 0;
+    state.test_close_on_update = state.test_autoclick
+        || g_strcmp0(g_getenv("ANX_GUI_TEST_CLOSE_ON_UPDATE"), "1") == 0;
     state.app = gtk_application_new("org.anx.wayland", G_APPLICATION_NON_UNIQUE);
     g_signal_connect(state.app, "activate", G_CALLBACK(on_activate), &state);
     int status = g_application_run(G_APPLICATION(state.app), 0, NULL);
