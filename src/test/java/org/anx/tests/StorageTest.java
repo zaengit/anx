@@ -1,7 +1,7 @@
 package org.anx.tests;
 import android.app.Application;
 import android.content.Context;
-import android.os.SharedPreferences;
+import android.content.SharedPreferences;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;

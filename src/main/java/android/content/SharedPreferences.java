@@ -1,4 +1,4 @@
-package android.os;
+package android.content;
 import java.util.Map;
 import java.util.Set;
 /** Persistent, private subset; listeners and StringSet are not implemented. */
