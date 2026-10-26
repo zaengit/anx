@@ -49,3 +49,22 @@ jobs:
 
       - name: Run APK inspection smoke test
         run: bash tests/apk-inspect-smoke.sh
+
+  wayland-backend:
+    name: Native Wayland compile and headless GUI smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install GTK4 and a headless Wayland compositor
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev pkg-config weston
+      - name: Compile native Wayland backend
+        run: bash scripts/build-wayland.sh
+      - name: Verify Java click and repaint protocol
+        run: bash tests/gui-protocol-smoke.sh
+      - name: Verify Wayland window under Weston headless
+        run: bash tests/wayland-headless.sh
