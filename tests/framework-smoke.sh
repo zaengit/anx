@@ -7,6 +7,7 @@ find src/main/java src/test/java -name '*.java' -print > build/test-sources.txt
 javac --release 8 -encoding UTF-8 -d build/test-classes @build/test-sources.txt
 ANX_APP_DATA_HOME="$ROOT/build/storage-test" java -cp build/test-classes org.anx.tests.StorageTest
 java -cp build/test-classes org.anx.tests.FrameworkLifecycleTest
+java -cp build/test-classes org.anx.tests.LoggingPackageTest
 if java -cp build/test-classes org.anx.launcher.Main \
     org.anx.tests.ThrowingActivity org.anx.tests \
     org.anx.tests.ThrowingApplication > build/lifecycle-failure.out 2>&1; then

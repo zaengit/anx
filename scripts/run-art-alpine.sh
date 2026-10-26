@@ -58,6 +58,7 @@ echo "[art-container] ART source commit: a1edfc40e8cea3644d80e4e776d3fa7fc397a1c
         fi
         grep -Fq "[anx] Application.onCreate" /anx/build/art-smoke/apk-run.log
         grep -Fq "[demo] Application ready: org.demo" /anx/build/art-smoke/apk-run.log
+        grep -Fq "[android/INFO] ANX: Own package: org.demo" /anx/build/art-smoke/apk-run.log
         grep -Fq "[anx] onCreate" /anx/build/art-smoke/apk-run.log
         grep -Fq "[linux-console-backend] TextView: Halo dari API Android minimal!" /anx/build/art-smoke/apk-run.log
         grep -Fq "[anx] onDestroy" /anx/build/art-smoke/apk-run.log
