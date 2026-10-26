@@ -7,7 +7,7 @@ small Android framework subset. ANX is not a VM or general Android OS.
 | --- | --- | --- |
 | M0 — JVM proof of concept | Done | `tests/smoke.sh` on CI |
 | M1 — Host ART bootstrap | Done on pinned reference | ART CI `HelloDex` + framework lifecycle |
-| M2 — APK metadata/loader | Done for one-DEX/no-native subset | Binary manifest and APK inspection smoke |
+| M2 — APK metadata/loader | Done for one-DEX/no-native subset | Binary manifest + independently SDK-compiled test APK |
 | M3 — App and Activity lifecycle | Done for documented subset | `tests/framework-smoke.sh` and ART standalone APK |
 | M4 — Wayland text/input backend | Experimental, headless integration verified | Native GTK4 + Weston + ART CI |
 | M5 — Interactive APK v0.1 MVP | In progress: ART + Wayland verified headlessly | GTK click signal + live label update pass; **human pointer/desktop unverified** |
@@ -56,3 +56,8 @@ process. It does not sandbox it. Do not run untrusted APKs.
 - [M5 live Handler PR #11](https://github.com/zaengit/anx/pull/11):
   `Handler.postDelayed()` now dispatches during an open Wayland window and
   a TextView is repainted without a click, verified on JVM and ART/Weston.
+
+- Android SDK ABI fixture: the test APK source compiles against the official
+  `android.jar`, not the ANX Java stubs. ART loads that APK independently,
+  including its actual Android SharedPreferences return type descriptor and
+  a GTK button interaction. This is **not** a broad third-party APK matrix.

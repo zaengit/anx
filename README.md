@@ -98,6 +98,20 @@ does not yet load Android resources, multidex, JNI, Binder services, or Google
 Play Services. ART must be installed with its runtime libraries, bootclasspath,
 and data files.
 
+## Official Android SDK ABI regression
+
+```sh
+bash scripts/build-external-apk.sh
+./anx inspect build/external.apk
+./anx build/external.apk --unsafe-host-execution --art /path/to/dalvikvm64
+```
+
+The `tests/fixtures/external-app` fixture is compiled solely against the
+**official Android SDK `android.jar`**, not the ANX Java stubs, then packaged
+into an independent APK. CI tests its manifest, Application, SharedPreferences,
+logging, Activity and GTK button path on host ART. It is a purpose-built
+regression fixture, **not** evidence that arbitrary external Android apps work.
+
 ## Experimental native Wayland GUI
 
 ```sh
