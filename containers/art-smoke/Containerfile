@@ -16,7 +16,7 @@ RUN apk add --no-cache \
 # execute alongside host ART, rather than testing two unrelated processes.
 RUN apk add --no-cache \
       --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community \
-      gtk4.0-dev pkgconf weston weston-backend-headless font-dejavu
+      gtk4.0-dev pkgconf weston weston-backend-headless weston-shell-desktop font-dejavu
 
 WORKDIR /tmp
 RUN wget -O art_standalone.tar.gz \
