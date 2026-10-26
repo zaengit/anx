@@ -40,7 +40,9 @@ xdg-shell client implemented from scratch by ANX.
 - `tests/gui-protocol-smoke.sh`: JDK process-to-process click/repaint mock.
 - `scripts/build-wayland.sh`: GTK4 native compilation.
 - `tests/wayland-headless.sh`: native window under a headless Weston compositor.
-- `scripts/run-art-alpine.sh`: separate APK on ART **in console mode**.
+- `scripts/run-art-alpine.sh`: separate APK on ART in console mode, plus
+  ART + mock Wayland subprocess testing of ProcessBuilder/click/repaint. This
+  is **not** an actual graphical ART + GTK desktop test.
 
 **MVP not yet proven until an actual desktop runs the APK through host ART
 with Wayland, the user clicks, and the label repaints visibly.**

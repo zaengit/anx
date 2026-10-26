@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
     state.initial_label = argv[2];
     state.button_label = argv[3];
     state.input = g_string_new(NULL);
-    state.app = gtk_application_new("org.anx.wayland", G_APPLICATION_DEFAULT_FLAGS);
+    state.app = gtk_application_new("org.anx.wayland", G_APPLICATION_NON_UNIQUE);
     g_signal_connect(state.app, "activate", G_CALLBACK(on_activate), &state);
     int status = g_application_run(G_APPLICATION(state.app), 0, NULL);
     if (!state.closing) announce(&state, "CLOSE");

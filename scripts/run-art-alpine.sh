@@ -61,4 +61,5 @@ echo "[art-container] ART source commit: a1edfc40e8cea3644d80e4e776d3fa7fc397a1c
         grep -Fq "[linux-console-backend] TextView: Halo dari API Android minimal!" /anx/build/art-smoke/apk-run.log
         grep -Fq "[anx] onDestroy" /anx/build/art-smoke/apk-run.log
         echo "[PASS] Standalone demo APK loaded from its own DEX on ART. Log: build/art-smoke/apk-run.log"
+        ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-gui-protocol.sh
     '
