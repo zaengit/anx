@@ -3,7 +3,7 @@ import android.app.Application;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.content.pm.PackageManager;
-import android.os.SharedPreferences;
+import android.content.SharedPreferences;
 import org.anx.host.AppStorage;
 import java.io.File;
 import java.io.FileInputStream;

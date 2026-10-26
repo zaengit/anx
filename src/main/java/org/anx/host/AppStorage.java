@@ -1,5 +1,5 @@
 package org.anx.host;
-import android.os.SharedPreferences;
+import android.content.SharedPreferences;
 import java.io.File;
 /** Host paths for ANX private-per-package files (not an OS sandbox). */
 public final class AppStorage {

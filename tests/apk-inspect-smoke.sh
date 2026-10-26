@@ -42,6 +42,13 @@ test -f build/unsafe-art-was-invoked || {
 }
 echo '[PASS] Untrusted APK launch is denied by default and explicit opt-in is tested.'
 
+bash scripts/build-external-apk.sh
+python3 scripts/anx.py inspect build/external.apk > build/external-inspect.out
+grep -Fq 'Package: org.anx.external' build/external-inspect.out
+grep -Fq 'Application: org.anx.external.ExternalApplication' build/external-inspect.out
+grep -Fq 'Launcher activity: org.anx.external.ExternalActivity' build/external-inspect.out
+echo '[PASS] APK built against official android.jar has a valid binary manifest.'
+
 printf 'not a ZIP archive' > build/not-an-apk.apk
 if python3 scripts/anx.py inspect build/not-an-apk.apk >/dev/null 2>&1; then
     echo '[FAIL] Corrupted APK was accepted.' >&2

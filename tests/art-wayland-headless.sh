@@ -92,3 +92,31 @@ for expected in \
 done
 echo '[PASS] Host ART scheduled Handler callback advanced on live Wayland compositor.'
 
+# Actual Java bytecode below was compiled against the SDK android.jar, not
+# against ANX classes. The same GUI bridge must accept a real API ABI.
+unset ANX_GUI_TEST_CLOSE_ON_UPDATE
+export ANX_GUI_TEST_AUTOCLICK=1
+if ! timeout 40 python3 scripts/anx.py run build/external.apk \
+    --unsafe-host-execution --art "$ART_CMD" --backend wayland \
+    --wayland-binary "$NATIVE_BIN" \
+    --framework-dex build/framework/classes.dex \
+    --android-data "$RUNTIME/android-data" \
+    > "$LOG_DIR/external-art-wayland.log" 2>&1; then
+    cat "$LOG_DIR/external-art-wayland.log" >&2
+    echo '[FAIL] Official Android SDK APK and ART GUI failed' >&2
+    exit 1
+fi
+for expected in \
+    '[android/INFO] External: SDK ABI matched: org.anx.external' \
+    '[anx-wayland] window ready' \
+    '[external] click updated label' \
+    '[anx-wayland] label updated' \
+    '[anx-wayland] window closed'; do
+    grep -Fq "$expected" "$LOG_DIR/external-art-wayland.log" || {
+        cat "$LOG_DIR/external-art-wayland.log" >&2
+        echo "[FAIL] Missing external APK evidence: $expected" >&2
+        exit 1
+    }
+done
+echo '[PASS] SDK-compiled external APK runs on host ART and native GTK Wayland.'
+
