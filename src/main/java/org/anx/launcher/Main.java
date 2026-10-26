@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Looper;
 import org.anx.host.ConsoleBackend;
+import org.anx.host.GtkWaylandBackend;
 import org.anx.host.WindowBackend;
 /** ANX host ART/JVM entry: APK metadata is validated by the Python loader. */
 public final class Main {
@@ -49,7 +50,9 @@ public final class Main {
             instrumentation.callActivityOnResume(activity);
             resumed = true;
             main.drainForHost();
-            WindowBackend backend = new ConsoleBackend();
+            String backendName = System.getenv("ANX_BACKEND");
+            WindowBackend backend = "wayland".equals(backendName)
+                    ? new GtkWaylandBackend() : new ConsoleBackend();
             backend.show(activity.getContentViewForHost());
         } catch (Throwable error) {
             failure = error;
