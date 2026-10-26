@@ -11,7 +11,10 @@ mkdir -p "$LOG_DIR"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"
 cleanup() {
-    if [[ -n "${WESTON_PID:-}" ]]; then kill "$WESTON_PID" 2>/dev/null || true; fi
+    if [[ -n "${WESTON_PID:-}" ]]; then
+        kill "$WESTON_PID" 2>/dev/null || true
+        wait "$WESTON_PID" 2>/dev/null || true
+    fi
     rm -rf "$RUNTIME"
 }
 trap cleanup EXIT
