@@ -44,6 +44,13 @@ xdg-shell client implemented from scratch by ANX.
   ART + mock Wayland subprocess testing of ProcessBuilder/click/repaint. This
   is **not** an actual graphical ART + GTK desktop test.
 
-**MVP not yet proven until an actual desktop runs the APK through host ART
-with Wayland, the user clicks, and the label repaints visibly.**
+The ART integration test runs the actual GTK4 native client and standalone APK
+together on Alpine/musl ART against a Weston headless compositor. An explicit
+`ANX_GUI_TEST_AUTOCLICK=1` fixture fires GTK's `clicked` signal after the
+window is realized. The native client verifies that its live label was updated,
+then closes. This proves real ART + Wayland integration **without pretending
+to emulate a human pointer input event**.
+
+A manual desktop pointer click, focus, resize and long-running application
+tests are still required for the full interactive MVP acceptance gate.
 Unknown APKs are not safe: there is no application sandbox.

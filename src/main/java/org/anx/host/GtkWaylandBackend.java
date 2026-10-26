@@ -57,6 +57,8 @@ public final class GtkWaylandBackend implements WindowBackend {
                     process.getOutputStream(), StandardCharsets.UTF_8));
             boolean ready = false;
             boolean closed = false;
+            boolean clicked = false;
+            boolean updated = false;
             String line;
             while ((line = input.readLine()) != null) {
                 if ("READY".equals(line)) {
@@ -64,6 +66,7 @@ public final class GtkWaylandBackend implements WindowBackend {
                     System.out.println("[anx-wayland] window ready");
                 } else if ("CLICK".equals(line)) {
                     if (!ready || content.button == null) throw new IOException("Unexpected click event");
+                    clicked = true;
                     content.button.performClick();
                     Looper.myLooper().drainForHost();
                     String encoded = Base64.getEncoder().encodeToString(
@@ -71,6 +74,10 @@ public final class GtkWaylandBackend implements WindowBackend {
                     output.write("TEXT\t" + encoded + "\n");
                     output.flush();
                     System.out.println("[anx-wayland] button clicked");
+                } else if ("UPDATED".equals(line)) {
+                    if (!clicked || !ready) throw new IOException("Unexpected repaint acknowledgement");
+                    updated = true;
+                    System.out.println("[anx-wayland] label updated");
                 } else if ("CLOSE".equals(line)) {
                     closed = true;
                     break;
@@ -78,6 +85,8 @@ public final class GtkWaylandBackend implements WindowBackend {
             }
             if (process.waitFor() != 0) throw new IOException("Wayland backend failed");
             if (!ready || !closed) throw new IOException("Wayland backend ended without READY/CLOSE");
+            if ("1".equals(System.getenv("ANX_GUI_TEST_AUTOCLICK")) && (!clicked || !updated))
+                throw new IOException("Wayland integration test did not click and repaint");
             System.out.println("[anx-wayland] window closed");
         } catch (IOException error) {
             throw new IllegalStateException("Wayland window unavailable: " + error.getMessage(), error);
