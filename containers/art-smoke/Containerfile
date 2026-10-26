@@ -1,0 +1,29 @@
+FROM docker.io/library/alpine@sha256:020dfcbaaf4cc1078bf2d9c7ba31a8466e334061dcd2f248001d68f79e52c000
+
+ARG ART_PACKAGE_VERSION=0_git20261018-r0
+ARG ART_SOURCE_COMMIT=a1edfc40e8cea3644d80e4e776d3fa7fc397a1c2
+ARG ART_SOURCE_SHA512=ea16e95d3c1f5282757a5110691c0ce759561938709f2e8c081bdbaf72a634a494813775765de801ac72178f2ee6accef10071d380fb2966cfff4c709b2c9488
+
+RUN apk add --no-cache \
+      --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing \
+      art_standalone="${ART_PACKAGE_VERSION}" \
+      bash build-base bionic_translation-dev bsd-compat-headers expat-dev \
+      icu-dev java-common libbsd-dev libcap-dev libpng-dev libselinux-dev \
+      libunwind-dev lz4-dev meson openjdk8-jdk openssl-dev patch python3 \
+      valgrind-dev wolfssl-jni-dev xz-dev zip zlib-dev
+
+WORKDIR /tmp
+RUN wget -O art_standalone.tar.gz \
+      "https://gitlab.com/android_translation_layer/art_standalone/-/archive/${ART_SOURCE_COMMIT}/art_standalone-${ART_SOURCE_COMMIT}.tar.gz" \
+    && echo "${ART_SOURCE_SHA512}  art_standalone.tar.gz" | sha512sum -c - \
+    && tar -xzf art_standalone.tar.gz \
+    && mv "art_standalone-${ART_SOURCE_COMMIT}" art_standalone
+
+COPY third_party/patches/art_standalone-jni-onunload.patch /tmp/art_standalone-jni-onunload.patch
+RUN cd /tmp/art_standalone \
+    && patch -p1 < /tmp/art_standalone-jni-onunload.patch \
+    && make -j4 ____PREFIX=/usr ____LIBDIR=lib libjavacore \
+    && install -m 755 out/host/linux-x86/lib64/libjavacore.so /usr/lib/java/dex/art/natives/libjavacore.so \
+    && rm -rf /tmp/art_standalone /tmp/art_standalone.tar.gz /tmp/art_standalone-jni-onunload.patch
+
+WORKDIR /anx
