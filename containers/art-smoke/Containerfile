@@ -12,6 +12,12 @@ RUN apk add --no-cache \
       libunwind-dev lz4-dev meson openjdk8-jdk openssl-dev patch python3 \
       valgrind-dev wolfssl-jni-dev xz-dev zip zlib-dev
 
+# Native GTK4 compositor test dependencies are Alpine/musl compatible and
+# execute alongside host ART, rather than testing two unrelated processes.
+RUN apk add --no-cache \
+      --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community \
+      gtk4.0-dev pkgconf weston weston-backend-headless font-dejavu
+
 WORKDIR /tmp
 RUN wget -O art_standalone.tar.gz \
       "https://gitlab.com/android_translation_layer/art_standalone/-/archive/${ART_SOURCE_COMMIT}/art_standalone-${ART_SOURCE_COMMIT}.tar.gz" \

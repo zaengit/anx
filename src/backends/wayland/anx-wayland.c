@@ -7,6 +7,9 @@
 typedef struct {
     GtkApplication *app;
     GtkWidget *label;
+    GtkWidget *window;
+    GtkWidget *button;
+    gboolean test_autoclick;
     const char *title;
     const char *initial_label;
     const char *button_label;
@@ -33,6 +36,12 @@ static gboolean on_window_close(GtkWindow *window, gpointer user_data) {
     }
     return FALSE;
 }
+static gboolean click_for_test(gpointer user_data) {
+    HostWindow *state = user_data;
+    if (state->button != NULL && !state->closing)
+        g_signal_emit_by_name(state->button, "clicked");
+    return G_SOURCE_REMOVE;
+}
 static gboolean consume_line(HostWindow *state, const char *line) {
     if (!g_str_has_prefix(line, "TEXT\t")) return FALSE;
     const char *payload = line + 5;
@@ -43,6 +52,16 @@ static gboolean consume_line(HostWindow *state, const char *line) {
     if (valid && state->label != NULL) {
         char *text = g_strndup((const char *)decoded, length);
         gtk_label_set_text(GTK_LABEL(state->label), text);
+        if (state->test_autoclick) {
+            /* Test verifies GTK's live label, not only the outgoing Java payload. */
+            if (g_strcmp0(gtk_label_get_text(GTK_LABEL(state->label)), text) != 0) {
+                g_free(text);
+                g_free(decoded);
+                return FALSE;
+            }
+            announce(state, "UPDATED");
+            gtk_window_close(GTK_WINDOW(state->window));
+        }
         g_free(text);
     }
     g_free(decoded);
@@ -78,6 +97,7 @@ end_session:
 static void on_activate(GtkApplication *app, gpointer user_data) {
     HostWindow *state = user_data;
     GtkWidget *window = gtk_application_window_new(app);
+    state->window = window;
     gtk_window_set_title(GTK_WINDOW(window), state->title);
     gtk_window_set_default_size(GTK_WINDOW(window), 480, 220);
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 18);
@@ -91,6 +111,7 @@ static void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_box_append(GTK_BOX(box), state->label);
     if (state->button_label[0] != '\0') {
         GtkWidget *button = gtk_button_new_with_label(state->button_label);
+        state->button = button;
         g_signal_connect(button, "clicked", G_CALLBACK(on_button_clicked), state);
         gtk_box_append(GTK_BOX(box), button);
     }
@@ -100,6 +121,9 @@ static void on_activate(GtkApplication *app, gpointer user_data) {
                   on_stdin_readable, state);
     gtk_window_present(GTK_WINDOW(window));
     announce(state, "READY");
+    /* CI-only: exercise a real, realized GTK button signal under Weston. */
+    if (state->test_autoclick && state->button != NULL)
+        g_timeout_add(300, click_for_test, state);
 }
 int main(int argc, char **argv) {
     if (argc != 4) {
@@ -113,6 +137,7 @@ int main(int argc, char **argv) {
     state.initial_label = argv[2];
     state.button_label = argv[3];
     state.input = g_string_new(NULL);
+    state.test_autoclick = g_strcmp0(g_getenv("ANX_GUI_TEST_AUTOCLICK"), "1") == 0;
     state.app = gtk_application_new("org.anx.wayland", G_APPLICATION_NON_UNIQUE);
     g_signal_connect(state.app, "activate", G_CALLBACK(on_activate), &state);
     int status = g_application_run(G_APPLICATION(state.app), 0, NULL);
