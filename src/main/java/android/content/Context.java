@@ -38,7 +38,7 @@ public abstract class Context {
     }
     /** Host-only configuration hook. */
     public final void attachHostPackage(String name) {
-        if (name == null || !name.matches("[A-Za-z_][A-Za-z0-9_]*(\\\\.[A-Za-z_][A-Za-z0-9_]*)+"))
+        if (name == null || !name.matches("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+"))
             throw new IllegalArgumentException("Invalid Android package name");
         packageName = name;
     }
