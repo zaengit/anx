@@ -9,6 +9,12 @@ import android.os.Looper;
 import android.os.Message;
 import android.widget.Button;
 import android.widget.TextView;
+import android.content.res.Resources;
+import java.io.File;
+import java.io.InputStream;
+import java.io.FileOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -41,7 +47,10 @@ public final class FrameworkLifecycleTest {
                     events.add("message:" + message.what);
                 }
             };
+            other.sendEmptyMessage(8);
+            other.removeMessages(8);
             other.sendEmptyMessage(9);
+            handler.postDelayed(() -> events.add("late"), 60_000);
             check(Looper.myLooper() == Looper.getMainLooper(), "main thread");
         }
         @Override protected void onStart() { events.add("start"); }
@@ -61,6 +70,27 @@ public final class FrameworkLifecycleTest {
         bag.putBoolean("enabled", true);
         check(bag.getInt("count") == 4 && bag.getBoolean("enabled"), "bundle types");
         check("a".equals(new Bundle(bag).getString("name")), "bundle copy");
+        File zip = File.createTempFile("anx-assets-", ".apk");
+        zip.deleteOnExit();
+        try (ZipOutputStream out = new ZipOutputStream(new FileOutputStream(zip))) {
+            out.putNextEntry(new ZipEntry("assets/subdir/demo.txt"));
+            out.write("hello".getBytes("UTF-8"));
+            out.closeEntry();
+        }
+        Application fixtureApp = new Application();
+        fixtureApp.attachHostApk(zip.getAbsolutePath());
+        try (InputStream in = fixtureApp.getResources().getAssets().open("subdir/demo.txt")) {
+            byte[] bytes = new byte[5];
+            check(in.read(bytes) == 5 && "hello".equals(new String(bytes, "UTF-8")), "asset read");
+        }
+        try {
+            fixtureApp.getAssets().open("../subdir/demo.txt");
+            throw new AssertionError("path traversal accepted");
+        } catch (IllegalArgumentException expected) { }
+        try {
+            fixtureApp.getResources().getString(0x7f010001);
+            throw new AssertionError("unsupported resources accepted");
+        } catch (Resources.NotFoundException expected) { }
         Looper.prepareMainLooper();
         Instrumentation instrumentation = new Instrumentation();
         Application app = instrumentation.newApplication(DemoApplication.class.getName(), "test.pkg");

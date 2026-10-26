@@ -9,12 +9,12 @@ manifest package, application class, and APK path to the ART entry point.
 
 - `Application.onCreate` and host-only `Application.onTerminate`.
 - `Activity` lifecycle: create, start, resume, pause, stop, destroy.
-- `Context.getApplicationContext`, `getPackageName`, `getAssets`.
+- `Context.getApplicationContext`, `getPackageName`, `getAssets`, `getResources` (placeholder).
 - Explicit `Intent` class/action/categories and primitive extras.
 - `Bundle` for strings, ints, booleans, nested Bundles and copies.
 - `Looper`, `MessageQueue`, `Handler.post`, `postDelayed`,
   `sendMessage`, `removeCallbacks`, `removeMessages`.
-- `AssetManager.open` for read-only `assets/*` ZIP entries, with path validation.
+- `AssetManager.open` for read-only `assets/*` ZIP entries, with path validation. Compiled resource-ID lookups fail with `Resources.NotFoundException`.
 - `View.OnClickListener` and `Button.performClick` as API building blocks.
 
 ## Execution model and remaining gaps
