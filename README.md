@@ -1,12 +1,12 @@
 # ANX PoC 0.0.1 — ART + Android API subset on Linux
 
-A proof of concept for Java-based Android application compatibility in a Linux process **without** Waydroid, a VM, a container, or LineageOS. The design uses AOSP host ART (or an AOSP-based `art_standalone` fork). It **cannot yet** run Android APKs in general, and it **does not yet** display a GUI: the first backend only writes to the terminal.
+A proof of concept for Java-based Android application compatibility in a Linux process **without** Waydroid, a VM, a container, or LineageOS. The design uses AOSP host ART (or an AOSP-based `art_standalone` fork). It **cannot yet** run Android APKs in general, and an experimental native GTK4/GDK Wayland backend is available for the narrow TextView + Button demo (console fallback remains available).
 
 ## What is implemented
 
 - A small framework implementing `Application`, `Activity`, `Instrumentation`, `Intent`, typed `Bundle`, `Looper`, `MessageQueue`, `Handler`, `View`, `TextView`, and click-capable `Button`. The console backend does not yet support real graphical interaction.
 - Lifecycle dispatch on the prepared main thread: `Application.onCreate`, then `Activity.onCreate` → `onStart` → `onResume` → `onPause` → `onStop` → `onDestroy` with host-only `Application.onTerminate` during teardown.
-- An abstract `WindowBackend` and a `ConsoleBackend` implementation.
+- An abstract `WindowBackend`, recursive console view output, and an experimental GTK4/GDK Wayland process with a text/click IPC bridge.
 - A script to compile Java to DEX with **D8**; a script to run DEX through **ART `dalvikvm64`**.
 - A standalone `HelloDex` entry point and an ART smoke script that checks both DEX execution and the ANX lifecycle launcher.
 - An APK ZIP/size validator, Android binary manifest parser, launcher-Activity resolver, DEX/ABI inspector, and `anx inspect` / `anx run` commands.
@@ -90,6 +90,23 @@ future persistent backend. The current loader handles one DEX file and APKs with
 does not yet load Android resources, multidex, JNI, Binder services, or Google
 Play Services. ART must be installed with its runtime libraries, bootclasspath,
 and data files.
+
+## Experimental native Wayland GUI
+
+```sh
+# Fedora: sudo dnf install gtk4-devel pkgconf-pkg-config gcc
+# Ubuntu: sudo apt install libgtk-4-dev pkg-config build-essential
+bash scripts/build-wayland.sh
+bash scripts/build-demo-apk.sh
+./anx build/demo.apk --art /path/to/dalvikvm64 --backend wayland
+bash tests/gui-protocol-smoke.sh
+```
+
+`--backend auto` chooses Wayland when `WAYLAND_DISPLAY` and the built
+executable are present; otherwise it falls back to console. This experimental
+GTK4 Wayland bridge is **not** a full Android GUI implementation.
+
+See [docs/wayland-backend.md](docs/wayland-backend.md) for limitations and tests.
 
 ## Next milestones
 
