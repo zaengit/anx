@@ -3,6 +3,10 @@
 A proof of concept for Java-based Android application compatibility in a Linux process **without** Waydroid, a VM, a container, or LineageOS. The design uses AOSP host ART (or an AOSP-based `art_standalone` fork). It **cannot yet** run Android APKs in general, and an experimental native GTK4/GDK Wayland backend is available for the narrow TextView + Button demo (console fallback remains available).
 
 See [STATUS.md](STATUS.md) for tested milestone status and remaining release blockers.
+**All APK execution is denied by default** until the user explicitly acknowledges
+the lack of process isolation with `--unsafe-host-execution`. This flag is
+**not a sandbox**; use it only for verified/trusted test APKs.
+See [SECURITY.md](SECURITY.md).
 
 ## What is implemented
 
@@ -73,7 +77,7 @@ Having `dalvikvm64` available is not sufficient: host ART requires the correct l
 
 ```sh
 ./anx inspect /path/to/application.apk
-./anx run /path/to/application.apk --art /path/to/dalvikvm64
+./anx run /path/to/application.apk --art /path/to/dalvikvm64 --unsafe-host-execution
 ```
 
 Build the standalone demo APK and inspect/run it through the reference ART setup:
@@ -81,7 +85,7 @@ Build the standalone demo APK and inspect/run it through the reference ART setup
 ```sh
 bash scripts/build-demo-apk.sh
 ./anx inspect build/demo.apk
-./anx run build/demo.apk --art /path/to/dalvikvm64
+./anx run build/demo.apk --art /path/to/dalvikvm64 --unsafe-host-execution
 ```
 
 The loader passes the manifest package/Application name and APK path to the Java
@@ -101,7 +105,7 @@ and data files.
 # Ubuntu: sudo apt install libgtk-4-dev pkg-config build-essential
 bash scripts/build-wayland.sh
 bash scripts/build-demo-apk.sh
-./anx build/demo.apk --art /path/to/dalvikvm64 --backend wayland
+./anx build/demo.apk --art /path/to/dalvikvm64 --unsafe-host-execution --backend wayland
 bash tests/gui-protocol-smoke.sh
 ```
 

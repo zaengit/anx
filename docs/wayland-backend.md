@@ -17,7 +17,7 @@ Debian/Ubuntu: `sudo apt install libgtk-4-dev pkg-config build-essential`
 ```sh
 bash scripts/build-wayland.sh
 bash scripts/build-demo-apk.sh
-./anx build/demo.apk --art /path/to/dalvikvm64 --backend wayland
+./anx build/demo.apk --art /path/to/dalvikvm64 --unsafe-host-execution --backend wayland
 ```
 
 With a running Wayland session, `./anx build/demo.apk --art ...`
@@ -40,9 +40,9 @@ xdg-shell client implemented from scratch by ANX.
 - `tests/gui-protocol-smoke.sh`: JDK process-to-process click/repaint mock.
 - `scripts/build-wayland.sh`: GTK4 native compilation.
 - `tests/wayland-headless.sh`: native window under a headless Weston compositor.
-- `scripts/run-art-alpine.sh`: separate APK on ART in console mode, plus
-  ART + mock Wayland subprocess testing of ProcessBuilder/click/repaint. This
-  is **not** an actual graphical ART + GTK desktop test.
+- `scripts/run-art-alpine.sh`: the same standalone APK runs through ART with
+  a **real GTK4 window on headless Weston** and a deterministic test-only GTK
+  button-signal trigger; plus ART console and mock-subprocess regression tests.
 
 The ART integration test runs the actual GTK4 native client and standalone APK
 together on Alpine/musl ART against a Weston headless compositor. An explicit
