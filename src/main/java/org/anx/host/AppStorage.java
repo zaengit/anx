@@ -8,7 +8,9 @@ public final class AppStorage {
         String path = System.getenv("ANX_APP_DATA_HOME");
         if (path == null || path.isEmpty()) {
             String home = System.getProperty("user.home");
-            if (home == null || home.isEmpty()) throw new IllegalStateException("No user home");
+            if (home == null || home.isEmpty()) home = System.getenv("HOME");
+            if (home == null || home.isEmpty())
+                throw new IllegalStateException("No user home; set ANX_APP_DATA_HOME");
             path = new File(new File(home, ".local/share/anx"), "apps").getPath();
         }
         return new File(path);

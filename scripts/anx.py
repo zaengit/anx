@@ -84,6 +84,15 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
                str(metadata.path)]
     environment = os.environ.copy()
     environment["ANDROID_DATA"] = str(data_dir.resolve())
+    app_data_root = Path(os.environ.get(
+        "ANX_APP_DATA_HOME", str(Path.home() / ".local" / "share" / "anx" / "apps")
+    )).expanduser()
+    try:
+        app_data_root.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        print(f"anx run: cannot create app data directory: {exc}", file=sys.stderr)
+        return 1
+    environment["ANX_APP_DATA_HOME"] = str(app_data_root.resolve())
     environment["ANX_BACKEND"] = selected_backend
     if selected_backend == "wayland":
         environment["ANX_WAYLAND_BINARY"] = resolved_native
