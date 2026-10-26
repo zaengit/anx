@@ -19,6 +19,9 @@ manifest package, application class, and APK path to the ART entry point.
 
 ## Execution model and remaining gaps
 
+The host preserves all applicable cleanup transitions if a lifecycle callback
+throws: errors are propagated after stop/destroy/termination are attempted.
+
 The console MVP calls `Looper.drainForHost()` **once** after `onResume`.
 Only callbacks that are already due execute; future delayed callbacks do not
 keep the process alive. Full `Looper.loop()` is available, but a persistent

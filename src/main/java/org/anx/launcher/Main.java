@@ -53,31 +53,43 @@ public final class Main {
             backend.show(activity.getContentViewForHost());
         } catch (Throwable error) {
             failure = error;
-            throw error;
         } finally {
+            // Run all cleanup transitions, even if an earlier callback fails.
             try {
                 if (resumed) {
                     System.out.println("[anx] onPause");
                     instrumentation.callActivityOnPause(activity);
                 }
+            } catch (Throwable error) { failure = addFailure(failure, error); }
+            try {
                 if (started) {
                     System.out.println("[anx] onStop");
                     instrumentation.callActivityOnStop(activity);
                 }
+            } catch (Throwable error) { failure = addFailure(failure, error); }
+            try {
                 if (created) {
                     System.out.println("[anx] onDestroy");
                     instrumentation.callActivityOnDestroy(activity);
                 }
+            } catch (Throwable error) { failure = addFailure(failure, error); }
+            try {
                 if (appCreated) {
                     System.out.println("[anx] Application.onTerminate");
                     app.performTerminateForHost();
                 }
-            } catch (Throwable cleanupFailure) {
-                if (failure != null) failure.addSuppressed(cleanupFailure);
-                else throw cleanupFailure;
-            } finally {
-                main.quit();
-            }
+            } catch (Throwable error) { failure = addFailure(failure, error); }
+            main.quit();
         }
+        if (failure != null) {
+            if (failure instanceof Exception) throw (Exception) failure;
+            if (failure instanceof Error) throw (Error) failure;
+            throw new RuntimeException(failure);
+        }
+    }
+    private static Throwable addFailure(Throwable first, Throwable next) {
+        if (first == null) return next;
+        if (first != next) first.addSuppressed(next);
+        return first;
     }
 }
