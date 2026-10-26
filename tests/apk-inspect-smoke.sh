@@ -17,6 +17,31 @@ else
     exit 1
 fi
 
+# Refuse unsafe host execution by default, before launching a runtime.
+cat > build/fake-art <<'FAKE_ART'
+#!/bin/sh
+touch build/unsafe-art-was-invoked
+exit 0
+FAKE_ART
+chmod +x build/fake-art
+rm -f build/unsafe-art-was-invoked
+if python3 scripts/anx.py run build/demo.apk --art build/fake-art > build/unsafe-denied.out 2>&1; then
+    echo '[FAIL] Unsafe host execution without consent was accepted' >&2
+    exit 1
+fi
+grep -Fq -- '--unsafe-host-execution' build/unsafe-denied.out
+if [[ -e build/unsafe-art-was-invoked ]]; then
+    echo '[FAIL] ART was executed despite missing consent' >&2
+    exit 1
+fi
+python3 scripts/anx.py run build/demo.apk --art build/fake-art \
+    --unsafe-host-execution > build/unsafe-optin.out
+test -f build/unsafe-art-was-invoked || {
+    echo '[FAIL] Explicit opt-in did not reach the expected runtime' >&2
+    exit 1
+}
+echo '[PASS] Untrusted APK launch is denied by default and explicit opt-in is tested.'
+
 printf 'not a ZIP archive' > build/not-an-apk.apk
 if python3 scripts/anx.py inspect build/not-an-apk.apk >/dev/null 2>&1; then
     echo '[FAIL] Corrupted APK was accepted.' >&2

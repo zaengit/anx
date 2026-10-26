@@ -15,7 +15,7 @@ also lists DEX files and native ABIs. It does not extract APK contents.
 ```sh
 bash scripts/build-demo-apk.sh
 ./anx inspect build/demo.apk
-./anx run build/demo.apk --art /path/to/dalvikvm64
+./anx run build/demo.apk --art /path/to/dalvikvm64 --unsafe-host-execution
 ```
 
 `build/demo.apk` contains a binary `AndroidManifest.xml` and a DEX compiled

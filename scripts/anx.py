@@ -15,12 +15,21 @@ DEFAULT_FRAMEWORK_DEX = ROOT / "build" / "framework" / "classes.dex"
 
 
 def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
-         backend: str, wayland_binary: str | None) -> int:
+         backend: str, wayland_binary: str | None, unsafe_host_execution: bool) -> int:
     try:
         metadata = inspect_apk(apk)
     except ApkError as exc:
         print(f"anx run: {exc}", file=sys.stderr)
         return 1
+
+    if not unsafe_host_execution:
+        print(
+            "anx run: refusing to execute APK code without process isolation. "
+            "There is no sandbox; APK code can access host files and network. "
+            "Pass --unsafe-host-execution only for APKs you trust.",
+            file=sys.stderr,
+        )
+        return 2
 
     manifest = metadata.manifest
     if not metadata.dex_files:
@@ -118,6 +127,11 @@ def main() -> int:
     run_parser.add_argument("--android-data", type=Path)
     run_parser.add_argument("--backend", choices=("auto", "console", "wayland"),
                             default="auto")
+    run_parser.add_argument(
+        "--unsafe-host-execution",
+        action="store_true",
+        help="explicitly accept unrestricted host access by trusted APK code",
+    )
     run_parser.add_argument("--wayland-binary",
                             help="path to compiled GTK4 Wayland host executable")
     argv = sys.argv[1:]
@@ -132,7 +146,7 @@ def main() -> int:
             print(f"anx inspect: {exc}", file=sys.stderr)
             return 1
     return _run(args.apk, args.art, args.framework_dex, args.android_data,
-                args.backend, args.wayland_binary)
+                args.backend, args.wayland_binary, args.unsafe_host_execution)
 
 
 if __name__ == "__main__":

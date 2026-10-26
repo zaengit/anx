@@ -38,7 +38,7 @@ export GDK_BACKEND=wayland
 export GSK_RENDERER=cairo
 export ANX_GUI_TEST_AUTOCLICK=1
 if ! timeout 40 python3 scripts/anx.py run build/demo.apk \
-    --art "$ART_CMD" --backend wayland \
+    --unsafe-host-execution --art "$ART_CMD" --backend wayland \
     --wayland-binary "$NATIVE_BIN" \
     --framework-dex build/framework/classes.dex \
     --android-data "$RUNTIME/android-data" \

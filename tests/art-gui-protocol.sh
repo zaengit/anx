@@ -19,7 +19,7 @@ MOCK_SCRIPT
 chmod +x "$MOCK"
 export ANX_PROTOCOL_CAPTURE="$CAPTURE"
 python3 scripts/anx.py run build/demo.apk \
-    --art "$ART_CMD" --backend wayland --wayland-binary "$MOCK" \
+    --unsafe-host-execution --art "$ART_CMD" --backend wayland --wayland-binary "$MOCK" \
     --framework-dex build/framework/classes.dex \
     --android-data "${ANDROID_DATA:-/tmp/anx-art-gui-data}" > "$LOG" 2>&1 || {
     cat "$LOG" >&2

@@ -45,6 +45,7 @@ echo "[art-container] ART source commit: a1edfc40e8cea3644d80e4e776d3fa7fc397a1c
             ART_SMOKE_LOG_DIR=/anx/build/art-smoke \
             bash tests/art-smoke.sh
         if python3 scripts/anx.py run \
+            --unsafe-host-execution \
             --art "$art_cmd" \
             --framework-dex build/framework/classes.dex \
             --android-data /tmp/anx-app-data \

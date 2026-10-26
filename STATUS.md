@@ -1,6 +1,6 @@
 # ANX development status
 
-**Updated:** 2026-10-26. **Scope:** Linux x86_64, host ART, a deliberately
+**Updated:** 2026-10-27. **Scope:** Linux x86_64, host ART, a deliberately
 small Android framework subset. ANX is not a VM or general Android OS.
 
 | Milestone | Status | Verification |
@@ -9,11 +9,11 @@ small Android framework subset. ANX is not a VM or general Android OS.
 | M1 — Host ART bootstrap | Done on pinned reference | ART CI `HelloDex` + framework lifecycle |
 | M2 — APK metadata/loader | Done for one-DEX/no-native subset | Binary manifest and APK inspection smoke |
 | M3 — App and Activity lifecycle | Done for documented subset | `tests/framework-smoke.sh` and ART standalone APK |
-| M4 — Wayland text/input backend | Experimental, not accepted end-to-end | GTK4 client under Weston headless; protocol test |
-| M5 — Interactive APK v0.1 MVP | In progress, release gate open | ART + mock GUI click passes; *real visual desktop click unverified* |
-| M6 — Broader Android API coverage | Not implemented | [Issue #4](https://github.com/zaengit/anx/issues/4) |
+| M4 — Wayland text/input backend | Experimental, headless integration verified | Native GTK4 + Weston + ART CI |
+| M5 — Interactive APK v0.1 MVP | In progress: ART + Wayland verified headlessly | GTK click signal + live label update pass; **human pointer/desktop unverified** |
+| M6 — Broader Android API coverage | App file storage and SharedPreferences subset implemented | PR #9 JVM + ART tests; third-party APK matrix pending |
 | M7 — Bionic/JNI/native ABI | Not implemented | [Issue #5](https://github.com/zaengit/anx/issues/5) |
-| M8 — Sandbox, license, release | Not implemented | [Issue #6](https://github.com/zaengit/anx/issues/6) |
+| M8 — Sandbox, license, release | Explicit unsandboxed execution consent; sandbox still missing | CLI denial regression; [Issue #6](https://github.com/zaengit/anx/issues/6) |
 
 ## Evidence
 
@@ -41,3 +41,14 @@ small Android framework subset. ANX is not a VM or general Android OS.
 
 **Security warning:** ANX currently launches APK bytecode as a regular host
 process. It does not sandbox it. Do not run untrusted APKs.
+
+## Additional verified work
+
+- [M5 ART + Wayland PR #8](https://github.com/zaengit/anx/pull/8):
+  a real GTK4 Wayland window runs under headless Weston in the ART container,
+  with a test-only GTK button signal and live label-update validation. It is
+  not a physical pointer-input test.
+- [M6 storage PR #9](https://github.com/zaengit/anx/pull/9):
+  typed persistent preferences and per-package files with JVM/ART tests.
+- M8 risk mitigation: CLI requires explicit acknowledgement for all unsandboxed
+  execution. **This does not isolate the process or make third-party APKs safe.**
