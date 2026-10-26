@@ -41,5 +41,8 @@ jobs:
       - name: Run JVM smoke test
         run: bash tests/smoke.sh
 
+      - name: Run framework lifecycle and event loop tests
+        run: bash tests/framework-smoke.sh
+
       - name: Run APK inspection smoke test
         run: bash tests/apk-inspect-smoke.sh

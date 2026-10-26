@@ -4,8 +4,8 @@ A proof of concept for Java-based Android application compatibility in a Linux p
 
 ## What is implemented
 
-- Minimal Java implementations of `android.app.Activity`, `android.content.Context`, `android.os.Bundle`, `android.view.View`, and `android.widget.TextView`.
-- A lifecycle launcher for the demo Activity: `onCreate` → `onStart` → `onResume` → `onPause` → `onStop` → `onDestroy`.
+- A small framework implementing `Application`, `Activity`, `Instrumentation`, `Intent`, typed `Bundle`, `Looper`, `MessageQueue`, `Handler`, `View`, `TextView`, and click-capable `Button`. The console backend does not yet support real graphical interaction.
+- Lifecycle dispatch on the prepared main thread: `Application.onCreate`, then `Activity.onCreate` → `onStart` → `onResume` → `onPause` → `onStop` → `onDestroy` with host-only `Application.onTerminate` during teardown.
 - An abstract `WindowBackend` and a `ConsoleBackend` implementation.
 - A script to compile Java to DEX with **D8**; a script to run DEX through **ART `dalvikvm64`**.
 - A standalone `HelloDex` entry point and an ART smoke script that checks both DEX execution and the ANX lifecycle launcher.
@@ -18,10 +18,11 @@ A proof of concept for Java-based Android application compatibility in a Linux p
 - To compile DEX: Android SDK Build-Tools containing `d8`, or an R8 JAR that provides `com.android.tools.r8.D8`.
 - To execute with ART: host ART `dalvikvm64`, along with compatible libraries, bootclasspath, and build data files. One relatively practical example is https://gitlab.com/android_translation_layer/art_standalone (an AOSP-derived modified ART). This build has many dependencies; see its repository README. The ART version and PoC framework must be compatible at the bytecode/API level.
 
-## Quick test (JDK smoke test, not ART)
+## Quick tests (JDK smoke tests, not ART)
 
 ```sh
 bash tests/smoke.sh
+bash tests/framework-smoke.sh
 ```
 
 The JDK is used only to validate *stub logic* before testing ART. This is **not evidence of ART integration**.
@@ -81,18 +82,26 @@ bash scripts/build-demo-apk.sh
 ./anx run build/demo.apk --art /path/to/dalvikvm64
 ```
 
-The current loader handles one DEX file and APKs without native libraries. It
+The loader passes the manifest package/Application name and APK path to the Java
+host, so application callbacks and read-only `assets/` lookup can work in the
+supported subset. It drains ready main-thread callbacks once before displaying
+the console view; delayed callbacks and event-driven GUI execution require a
+future persistent backend. The current loader handles one DEX file and APKs without native libraries. It
 does not yet load Android resources, multidex, JNI, Binder services, or Google
 Play Services. ART must be installed with its runtime libraries, bootclasspath,
 and data files.
 
 ## Next milestones
 
-1. Add `Application`, `Instrumentation`, `Intent`, `Looper`, `MessageQueue`, and `Handler` on the main thread.
-2. Add a Wayland window, rendering, input events, and a button click path.
-3. Implement resources/assets and expand lifecycle support.
+1. Complete M3 verification on the pinned ART reference (JVM tests cover the implemented M3 subset).
+2. Add a native Wayland window, rendering, input events, and a persistent event loop.
+3. Implement resource-table lookup, layouts, and expand lifecycle support.
 4. Native libraries: Bionic linker compatibility, architecture matching, JNI, EGL/Vulkan, and required system services.
 5. App sandboxing (file, network, etc. permissions). Untrusted APKs must be treated as untrusted code.
+
+For precise scope and verification see [docs/framework-m3.md](docs/framework-m3.md).
+**Important:** There is no sandbox. Only run APKs you trust on the host;
+metadata validation does not isolate arbitrary application code.
 
 ## Architecture decisions
 

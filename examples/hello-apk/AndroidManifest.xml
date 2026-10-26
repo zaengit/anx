@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.demo">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="26" />
-    <application android:label="ANX Hello">
+    <application android:name=".HelloApplication" android:label="ANX Hello">
         <activity android:name=".HelloActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
