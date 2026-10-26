@@ -2,7 +2,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-[[ -x build/native/anx-wayland ]] || { echo 'Missing native backend' >&2; exit 1; }
+NATIVE_BIN="${ANX_WAYLAND_BINARY:-$ROOT/build/native/anx-wayland}"
+[[ -x "$NATIVE_BIN" ]] || { echo "Missing native backend: $NATIVE_BIN" >&2; exit 1; }
 command -v weston >/dev/null || { echo 'Missing Weston' >&2; exit 1; }
 ART_CMD="${ART_CMD:-dalvikvm64}"
 LOG_DIR="${ART_SMOKE_LOG_DIR:-$ROOT/build/art-smoke}"
@@ -35,7 +36,7 @@ export GSK_RENDERER=cairo
 export ANX_GUI_TEST_AUTOCLICK=1
 if ! timeout 40 python3 scripts/anx.py run build/demo.apk \
     --art "$ART_CMD" --backend wayland \
-    --wayland-binary "$ROOT/build/native/anx-wayland" \
+    --wayland-binary "$NATIVE_BIN" \
     --framework-dex build/framework/classes.dex \
     --android-data "$RUNTIME/android-data" \
     >"$LOG_DIR/art-wayland-e2e.log" 2>&1; then
