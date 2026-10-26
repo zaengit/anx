@@ -2,6 +2,7 @@ package android.content;
 import android.app.Application;
 import android.content.res.AssetManager;
 import android.content.res.Resources;
+import android.content.pm.PackageManager;
 import android.os.SharedPreferences;
 import org.anx.host.AppStorage;
 import java.io.File;
@@ -19,6 +20,7 @@ public abstract class Context {
     public final Context getApplicationContext() { return application == null ? this : application; }
     public final AssetManager getAssets() { return assets; }
     public final Resources getResources() { return new Resources(assets); }
+    public final PackageManager getPackageManager() { return new PackageManager(this); }
     public final File getFilesDir() { return AppStorage.directory(packageName, "files"); }
     public final File getCacheDir() { return AppStorage.directory(packageName, "cache"); }
     public final SharedPreferences getSharedPreferences(String name, int mode) {

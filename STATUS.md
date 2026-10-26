@@ -11,7 +11,7 @@ small Android framework subset. ANX is not a VM or general Android OS.
 | M3 — App and Activity lifecycle | Done for documented subset | `tests/framework-smoke.sh` and ART standalone APK |
 | M4 — Wayland text/input backend | Experimental, headless integration verified | Native GTK4 + Weston + ART CI |
 | M5 — Interactive APK v0.1 MVP | In progress: ART + Wayland verified headlessly | GTK click signal + live label update pass; **human pointer/desktop unverified** |
-| M6 — Broader Android API coverage | App file storage and SharedPreferences subset implemented | PR #9 JVM + ART tests; third-party APK matrix pending |
+| M6 — Broader Android API coverage | Storage/preferences plus logging and own-package query subsets | JVM + ART tests; third-party APK matrix pending |
 | M7 — Bionic/JNI/native ABI | Not implemented | [Issue #5](https://github.com/zaengit/anx/issues/5) |
 | M8 — Sandbox, license, release | Explicit unsandboxed execution consent; sandbox still missing | CLI denial regression; [Issue #6](https://github.com/zaengit/anx/issues/6) |
 
@@ -52,3 +52,7 @@ process. It does not sandbox it. Do not run untrusted APKs.
   typed persistent preferences and per-package files with JVM/ART tests.
 - M8 risk mitigation: CLI requires explicit acknowledgement for all unsandboxed
   execution. **This does not isolate the process or make third-party APKs safe.**
+
+- [M5 live Handler PR #11](https://github.com/zaengit/anx/pull/11):
+  `Handler.postDelayed()` now dispatches during an open Wayland window and
+  a TextView is repainted without a click, verified on JVM and ART/Weston.
