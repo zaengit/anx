@@ -63,3 +63,32 @@ for expected in \
 done
 cat "$LOG_DIR/art-wayland-e2e.log"
 echo '[PASS] Standalone APK on host ART, live GTK4 Wayland window, synthetic GTK click, label repaint, clean close.'
+
+# A separate APK class exercises Handler.postDelayed during an idle Wayland window.
+unset ANX_GUI_TEST_AUTOCLICK
+export ANX_GUI_TEST_CLOSE_ON_UPDATE=1
+export ANX_BACKEND=wayland
+export ANX_WAYLAND_BINARY="$NATIVE_BIN"
+export ANDROID_DATA="$RUNTIME/android-data"
+export ANX_APP_DATA_HOME="$RUNTIME/apps"
+if ! timeout 40 "$ART_CMD" -cp "$ROOT/build/framework/classes.dex:$ROOT/build/demo.apk" \
+    org.anx.launcher.Main org.demo.TimerActivity org.demo org.demo.HelloApplication \
+    "$ROOT/build/demo.apk" >"$LOG_DIR/art-wayland-timer.log" 2>&1; then
+    cat "$LOG_DIR/art-wayland-timer.log" >&2
+    echo '[FAIL] ART Wayland timer integration' >&2
+    exit 1
+fi
+for expected in \
+    '[demo] Delayed Handler fired' \
+    '[anx-wayland] window ready' \
+    '[anx-wayland] label updated' \
+    '[anx-wayland] window closed' \
+    '[anx] onDestroy'; do
+    grep -Fq "$expected" "$LOG_DIR/art-wayland-timer.log" || {
+        cat "$LOG_DIR/art-wayland-timer.log" >&2
+        echo "[FAIL] Missing ART timer output: $expected" >&2
+        exit 1
+    }
+done
+echo '[PASS] Host ART scheduled Handler callback advanced on live Wayland compositor.'
+

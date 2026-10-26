@@ -59,6 +59,7 @@ public final class GtkWaylandBackend implements WindowBackend {
             boolean closed = false;
             boolean clicked = false;
             boolean updated = false;
+            String lastSent = content.label.getText().toString();
             String line;
             while ((line = input.readLine()) != null) {
                 if ("READY".equals(line)) {
@@ -72,10 +73,24 @@ public final class GtkWaylandBackend implements WindowBackend {
                     String encoded = Base64.getEncoder().encodeToString(
                             content.label.getText().toString().getBytes(StandardCharsets.UTF_8));
                     output.write("TEXT\t" + encoded + "\n");
+                    lastSent = content.label.getText().toString();
                     output.flush();
                     System.out.println("[anx-wayland] button clicked");
+                } else if ("PULSE".equals(line)) {
+                    if (!ready) throw new IOException("Unexpected Looper pulse");
+                    Looper.myLooper().drainForHost();
+                    String now = content.label.getText().toString();
+                    if (!now.equals(lastSent)) {
+                        String data = Base64.getEncoder().encodeToString(
+                                now.getBytes(StandardCharsets.UTF_8));
+                        output.write("TEXT\t" + data + "\n");
+                        output.flush();
+                        lastSent = now;
+                    }
                 } else if ("UPDATED".equals(line)) {
-                    if (!clicked || !ready) throw new IOException("Unexpected repaint acknowledgement");
+                    boolean testUpdate = "1".equals(System.getenv("ANX_GUI_TEST_CLOSE_ON_UPDATE"));
+                    if ((!clicked && !testUpdate) || !ready)
+                        throw new IOException("Unexpected repaint acknowledgement");
                     updated = true;
                     System.out.println("[anx-wayland] label updated");
                 } else if ("CLOSE".equals(line)) {
@@ -87,6 +102,8 @@ public final class GtkWaylandBackend implements WindowBackend {
             if (!ready || !closed) throw new IOException("Wayland backend ended without READY/CLOSE");
             if ("1".equals(System.getenv("ANX_GUI_TEST_AUTOCLICK")) && (!clicked || !updated))
                 throw new IOException("Wayland integration test did not click and repaint");
+            if ("1".equals(System.getenv("ANX_GUI_TEST_CLOSE_ON_UPDATE")) && !updated)
+                throw new IOException("Wayland test did not repaint");
             System.out.println("[anx-wayland] window closed");
         } catch (IOException error) {
             throw new IllegalStateException("Wayland window unavailable: " + error.getMessage(), error);
