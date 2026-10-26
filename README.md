@@ -1,6 +1,8 @@
-# ANX PoC 0.0.1 — ART + Android API subset on Linux
+# ANX — experimental Android compatibility layer for Linux
 
 A proof of concept for Java-based Android application compatibility in a Linux process **without** Waydroid, a VM, a container, or LineageOS. The design uses AOSP host ART (or an AOSP-based `art_standalone` fork). It **cannot yet** run Android APKs in general, and an experimental native GTK4/GDK Wayland backend is available for the narrow TextView + Button demo (console fallback remains available).
+
+See [STATUS.md](STATUS.md) for tested milestone status and remaining release blockers.
 
 ## What is implemented
 
@@ -25,7 +27,7 @@ bash tests/smoke.sh
 bash tests/framework-smoke.sh
 ```
 
-The JDK is used only to validate *stub logic* before testing ART. This is **not evidence of ART integration**.
+The JDK validates the Java compatibility logic. Separate host-ART evidence is provided by the [ART integration workflow](.github/workflows/art-integration.yml), which runs the standalone APK and a mock click/repaint subprocess through the patched reference ART.
 
 ## Convert to DEX
 
@@ -84,9 +86,10 @@ bash scripts/build-demo-apk.sh
 
 The loader passes the manifest package/Application name and APK path to the Java
 host, so application callbacks and read-only `assets/` lookup can work in the
-supported subset. It drains ready main-thread callbacks once before displaying
-the console view; delayed callbacks and event-driven GUI execution require a
-future persistent backend. The current loader handles one DEX file and APKs without native libraries. It
+supported subset. It drains ready main-thread callbacks once before displaying the console view.
+The experimental GUI backend waits for native click/close events, but it does
+not yet offer Android-compatible continuous Looper timing or background tasks.
+The current loader handles one DEX file and APKs without native libraries. It
 does not yet load Android resources, multidex, JNI, Binder services, or Google
 Play Services. ART must be installed with its runtime libraries, bootclasspath,
 and data files.
@@ -108,17 +111,16 @@ GTK4 Wayland bridge is **not** a full Android GUI implementation.
 
 See [docs/wayland-backend.md](docs/wayland-backend.md) for limitations and tests.
 
-## Next milestones
+## Next milestones and safety
 
-1. Complete M3 verification on the pinned ART reference (JVM tests cover the implemented M3 subset).
-2. Add a native Wayland window, rendering, input events, and a persistent event loop.
-3. Implement resource-table lookup, layouts, and expand lifecycle support.
-4. Native libraries: Bionic linker compatibility, architecture matching, JNI, EGL/Vulkan, and required system services.
-5. App sandboxing (file, network, etc. permissions). Untrusted APKs must be treated as untrusted code.
+M3's lifecycle subset is validated on pinned ART. M4's native GTK4 Wayland
+client and the host bridge pass compositor-headless and ART/mock-protocol
+tests respectively. The fully integrated **ART + GTK4 visual click** remains
+unverified, so **M5/v0.1 MVP is not complete**.
 
-For precise scope and verification see [docs/framework-m3.md](docs/framework-m3.md).
-**Important:** There is no sandbox. Only run APKs you trust on the host;
-metadata validation does not isolate arbitrary application code.
+Track the remaining development in [STATUS.md](STATUS.md) and [M4–M8 issues](https://github.com/zaengit/anx/issues).
+There is **no sandbox**: only run APKs you trust. APK metadata validation
+does not isolate executable code from the Linux host.
 
 ## Architecture decisions
 
