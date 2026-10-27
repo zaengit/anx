@@ -9,6 +9,7 @@ public class TextView extends View {
 
     public TextView(Context context) { super(context); }
     public void setText(CharSequence text) { this.text = text == null ? "" : text; }
+    public void setText(int resourceId) { setText(getContext().getText(resourceId)); }
     public CharSequence getText() { return text; }
 
     @Override

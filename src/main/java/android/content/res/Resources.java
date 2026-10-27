@@ -1,5 +1,6 @@
 package android.content.res;
-/** Minimal read-only resources facade; compiled resources.arsc IDs are unsupported. */
+
+/** Read-only compiled string lookup for default-config `resources.arsc` entries. */
 public final class Resources {
     private final AssetManager assets;
     public Resources(AssetManager assets) {
@@ -7,9 +8,13 @@ public final class Resources {
         this.assets = assets;
     }
     public AssetManager getAssets() { return assets; }
+    public CharSequence getText(int id) { return getString(id); }
     public String getString(int id) {
-        throw new NotFoundException("Compiled Android resource IDs are not supported: 0x"
-                + Integer.toHexString(id));
+        String value = CompiledStrings.find(assets.apkPathForHost(), id);
+        if (value == null)
+            throw new NotFoundException("String resource not found: 0x"
+                    + Integer.toHexString(id));
+        return value;
     }
     public static class NotFoundException extends RuntimeException {
         public NotFoundException(String message) { super(message); }
