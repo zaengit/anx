@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="content_gap">12dp</dimen>
+    <item type="dimen" name="content_gap_alias">@dimen/content_gap</item>
 </resources>

@@ -11,20 +11,23 @@ public final class ExternalActivity extends Activity {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         final TextView label = new TextView(this);
-        label.setText(R.string.screen_title);
+        label.setText(R.string.title_alias_chain);
+        if (!"External APK from Android SDK".equals(getString(R.string.screen_title_alias)))
+            throw new AssertionError("Aliased string resource mismatch");
         if (!"Selamat datang di ANX — ✓".equals(getString(R.string.utf8_probe)))
             throw new AssertionError("UTF-8 compiled string resource failed");
         System.out.println("[external] resources.arsc lookup ok");
-        if (getColor(R.color.accent) != 0xff336699)
+        if (getColor(R.color.accent_alias) != 0xff336699)
             throw new AssertionError("Compiled color resource mismatch");
-        if (getResources().getDimension(R.dimen.content_gap) != 12f
-                || getResources().getDimensionPixelSize(R.dimen.content_gap) != 12)
+        if (getResources().getDimension(R.dimen.content_gap_alias) != 12f
+                || getResources().getDimensionPixelSize(R.dimen.content_gap_alias) != 12)
             throw new AssertionError("Compiled dimension resource mismatch");
         System.out.println("[external] color and dimension resources ok");
+        System.out.println("[external] resource references resolved");
         Button button = new Button(this);
         button.setText("Update");
         button.setOnClickListener(v -> {
-            label.setText(getString(R.string.clicked_message));
+            label.setText(getString(R.string.clicked_alias));
             System.out.println("[external] click updated label");
         });
         content.addView(label);
