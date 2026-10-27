@@ -45,12 +45,12 @@ final class CompiledValues {
         return v == null || v.type != TYPE_STRING ? null : get(v.strings, v.data);
     }
     static Integer findColor(String apkPath, int id) {
-        Value v = findRaw(apkPath, id);
+        Value v = findResolved(apkPath, id);
         if (v == null || v.type < 0x1c || v.type > 0x1f) return null;
         return Integer.valueOf(v.data);
     }
     static Float findDimension(String apkPath, int id) {
-        Value v = findRaw(apkPath, id);
+        Value v = findResolved(apkPath, id);
         if (v == null || v.type != TYPE_DIMENSION) return null;
         int unit = v.data & 0x0f;
         // Fixed virtual density=1.0, scaled density=1.0 for the narrow ANX MVP.
