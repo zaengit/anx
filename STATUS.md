@@ -66,3 +66,7 @@ process. It does not sandbox it. Do not run untrusted APKs.
   `tests/sandbox-kernel.py`: it checks network/mount namespaces and actual
   file permissions. Root CI isolation and unprivileged setup compatibility
   are tracked separately. Do not infer normal-user support from root testing.
+
+- M8 further reduces cross-package exposure by binding only the active
+  package's ART cache inside `/anx/data`, in addition to per-package app
+  storage. Real kernel and mock tests check cross-package isolation.

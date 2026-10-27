@@ -42,6 +42,8 @@ assert not Path("/anx/apps/org.other/secret.txt").exists(), "other package data 
 target = Path("/anx/apps/org.fixture/guest-wrote.txt")
 target.write_text("persist-from-bwrap", encoding="utf-8")
 assert Path("/anx/data").is_dir(), "Android data bind is missing"
+assert not Path("/anx/data/org.other/cache.bin").exists(), "sibling ART cache visible"
+Path("/anx/data/own-cache.bin").write_bytes(b"own-runtime-cache")
 assert Path("/tmp").is_dir(), "temporary directory unavailable"
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     sock.settimeout(0.35)
@@ -68,6 +70,9 @@ def main() -> int:
         apps = root / "apps"
         for directory in (android_data, apps):
             directory.mkdir()
+        other_runtime = android_data / "org.other"
+        other_runtime.mkdir()
+        (other_runtime / "cache.bin").write_bytes(b"other-runtime")
         other = apps / "org.other"
         other.mkdir()
         (other / "secret.txt").write_text("other app data", encoding="utf-8")
@@ -120,13 +125,19 @@ def main() -> int:
             if (apps / "org.fixture/guest-wrote.txt").read_text(encoding="utf-8") != "persist-from-bwrap":
                 print("[FAIL] Explicit writable ANX app data bind did not persist", file=sys.stderr)
                 return 1
+            if (android_data / "org.fixture/own-cache.bin").read_bytes() != b"own-runtime-cache":
+                print("[FAIL] Package-local ART runtime data did not persist", file=sys.stderr)
+                return 1
+            if (android_data / "org.other/cache.bin").read_bytes() != b"other-runtime":
+                print("[FAIL] Sibling ART runtime data was modified", file=sys.stderr)
+                return 1
             if apk.read_bytes() != b"apk-fixture":
                 print("[FAIL] Host APK modified despite read-only bind", file=sys.stderr)
                 return 1
         finally:
             marker.unlink(missing_ok=True)
     print("[PASS] Real Bubblewrap: separate network/mount namespaces, "
-          "no host home/env, read-only APK/runtime, per-package data persistence.")
+          "no host home/env, read-only APK/runtime, per-package ART and app-data persistence.")
     return 0
 
 if __name__ == "__main__":
