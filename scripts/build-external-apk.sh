@@ -29,9 +29,9 @@ if [[ -z "$ANDROID_JAR" ]]; then
         -type f -name android.jar -print 2>/dev/null | sort -V | tail -n 1)"
 fi
 [[ -f "$ANDROID_JAR" ]] || { echo 'Missing SDK android.jar' >&2; exit 1; }
-SOURCE_DIR="${ANX_FIXTURE_SOURCE:-"$SOURCE_DIR"}"
+SOURCE_DIR="${ANX_FIXTURE_SOURCE:-tests/fixtures/external-app}"
 OUTPUT_DIR="${ANX_FIXTURE_OUTPUT_DIR:-build/external}"
-OUTPUT_APK="${ANX_FIXTURE_APK:-"$OUTPUT_APK"}"
+OUTPUT_APK="${ANX_FIXTURE_APK:-build/external.apk}"
 mkdir -p "$OUTPUT_DIR/classes" "$OUTPUT_DIR/dex"
 find "$SOURCE_DIR" -name '*.java' -print > "$OUTPUT_DIR/sources.txt"
 # Key ABI test: javac sees ONLY the official Android SDK, not build/framework.
@@ -45,4 +45,4 @@ jar --create --file "$OUTPUT_DIR/app.jar" -C "$OUTPUT_DIR/classes" .
     -I "$ANDROID_JAR" -F "$OUTPUT_DIR/metadata.apk"
 python3 scripts/package-demo-apk.py \
     "$OUTPUT_DIR/metadata.apk" "$OUTPUT_DIR/dex"/classes.dex "$OUTPUT_APK"
-echo '[PASS] Independent Android-SDK-compiled APK: "$OUTPUT_APK"'
+echo "[PASS] Independent Android-SDK-compiled APK: $OUTPUT_APK"
