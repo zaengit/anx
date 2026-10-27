@@ -5,8 +5,9 @@ process using Bubblewrap's Linux user/mount/PID/network namespaces, *only*
 with `--backend console`. The child receives a read-only `/usr` and runtime
 library paths, a private `/tmp`, `/proc`, `/dev`, and read-only binds for
 the framework DEX and APK at `/anx/`. Only the dedicated Android data
-directory and ANX's per-app data root are mounted writable at `/anx/data`
-and `/anx/apps`. The host home, `/etc`, other working directories, the
+directory and a **single validated package's** app-data directory are mounted
+writable at `/anx/data` and `/anx/apps/<package>`. Other ANX packages' data
+directories are not mounted. The host home, `/etc`, other working directories, the
 host `/run` and Wayland sockets are not mounted by the profile. Inherited
 environment variables are cleared before launching ART.
 
@@ -38,7 +39,28 @@ sandbox; never run untrusted APKs.
 `bash tests/sandbox-smoke.sh` checks a fake Bubblewrap backend's received
 arguments and proves that failed isolation never retries ART unsandboxed.
 
-**The CI tests are structural/mock tests, not evidence that the kernel
-namespaces work on a target distro.** Successful runtime kernel isolation,
+**The unit and fake-helper tests are structural/mock tests, not evidence
+that the kernel namespaces work on a target distro.** Successful runtime kernel isolation,
 network denial, host-file denial, resource limits, Wayland permissions and
 security audit are separate release gates.
+
+## Real kernel isolation verification (development)
+
+`python3 tests/sandbox-kernel.py` invokes an **actual Bubblewrap child**,
+rather than a fake helper. On a Linux host permitting user namespaces it
+checks that mount and network namespace identifiers differ from the host,
+the host's home-only marker is inaccessible, inherited environment is
+cleared, the APK and framework mounts are read-only, outbound TCP cannot
+connect, and only explicitly writable ANX data directories persist writes, while
+a sibling app package's data is inaccessible.
+
+CI probes the unprivileged runner first. If Ubuntu's AppArmor/userns rules
+reject namespace creation, the probe returns a distinct `UNSUPPORTED`
+status (77), and the job records that the **normal-user profile is unusable
+on this runner**; it does not disable AppArmor or retry ANX without isolation.
+A separate **sudo/root CI-only probe** checks the actual kernel namespace
+and filesystem policy with sufficient setup permissions. A root CI success
+must not be represented as unprivileged Linux compatibility. Passing this probe would
+support this specific profile on that CI runner, but **does not certify** a
+complete sandbox (e.g. seccomp, inherited FDs, devices, TOCTOU, escapes,
+third-party audits, and other distros are not covered).
