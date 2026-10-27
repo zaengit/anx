@@ -88,3 +88,22 @@ The virtual pointer protocol XML is pinned verbatim from upstream
 copyright/licensing notice is retained inside the XML. The injector is built
 only for CI and is never installed with ANX. It must never be connected to
 an ordinary user desktop compositor, since it can inject pointer events.
+
+## ART + compositor-generated button input (SDK APK)
+
+`tests/art-sway-pointer.sh` reuses the persistent, isolated Sway
+`zwlr_virtual_pointer_v1` approach in the pinned Alpine/musl ART image.
+It runs the **Android-SDK-compiled** `nested-fixture.apk` with
+`scripts/anx.py --backend wayland`, positions the virtual seat pointer
+over the actual GTK Button, presses/releases BTN_LEFT, and requires the
+Java `android:onClick` callback and live label repaint. No GTK
+`clicked`-signal or `ANX_GUI_TEST_AUTOCLICK` is used.
+
+Native pointer-helper output is generated under `build/art-smoke/`
+because the source tree is mounted read-only inside CI's ART container.
+The Java-runtime-only Sway test and the Weston tests are retained.
+
+**Evidence scope:** headless compositor-generated input on pinned ART;
+not a human mouse on a production desktop, input across nested menus, or
+general Android widget interaction. All APK execution still requires
+explicit host execution consent and should use trusted code only.
