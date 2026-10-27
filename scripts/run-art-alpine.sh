@@ -105,6 +105,19 @@ echo "[art-container] ART source commit: a1edfc40e8cea3644d80e4e776d3fa7fc397a1c
         grep -Fq "[linux-console-backend] TextView: Hello world!" /anx/build/art-smoke/chiuki-third-party.log
         grep -Fq "[anx] onDestroy" /anx/build/art-smoke/chiuki-third-party.log
         echo "[PASS] Unmodified Apache-2.0 third-party source runs using XML TextView on ART."
+        if ! python3 scripts/anx.py run build/nested-fixture.apk \
+            --unsafe-host-execution --art "$art_cmd" --backend console \
+            --framework-dex build/framework/classes.dex \
+            --android-data /tmp/anx-nested-data \
+            > /anx/build/art-smoke/nested-apk.log 2>&1; then
+            cat /anx/build/art-smoke/nested-apk.log >&2
+            exit 1
+        fi
+        grep -Fq "[nested] XML hierarchy and IDs resolved" /anx/build/art-smoke/nested-apk.log
+        grep -Fq "[linux-console-backend] TextView: Nested XML ready" /anx/build/art-smoke/nested-apk.log
+        grep -Fq "[linux-console-backend] Button: Update nested" /anx/build/art-smoke/nested-apk.log
+        grep -Fq "[anx] onDestroy" /anx/build/art-smoke/nested-apk.log
+        echo "[PASS] SDK APK nested XML view IDs, text and button on host ART."
         ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-gui-protocol.sh
         ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-jni-smoke.sh
         ANX_NATIVE_OUTPUT_DIR=/anx/build/art-smoke/native bash scripts/build-wayland.sh

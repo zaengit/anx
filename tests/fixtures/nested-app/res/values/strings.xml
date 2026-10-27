@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nested_ready">Nested XML ready</string>
+    <string name="nested_clicked">Nested XML clicked</string>
+    <string name="update_button">Update nested</string>
+</resources>
