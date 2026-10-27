@@ -12,7 +12,7 @@ small Android framework subset. ANX is not a VM or general Android OS.
 | M4 — Wayland text/input backend | Experimental, headless integration verified | Native GTK4 + Weston + ART CI |
 | M5 — Interactive APK v0.1 MVP | In progress: ART + Wayland verified headlessly | GTK click signal + live label update pass; **human pointer/desktop unverified** |
 | M6 — Broader Android API coverage | Storage/preferences plus logging and own-package query subsets | JVM + ART tests; third-party APK matrix pending |
-| M7 — Bionic/JNI/native ABI | Not implemented | [Issue #5](https://github.com/zaengit/anx/issues/5) |
+| M7 — Bionic/JNI/native ABI | Experimental host-x86_64 JNI pilot; Bionic and ABI translation not implemented | Native ELF/ZIP safety tests and host-ART JNI fixture |
 | M8 — Sandbox, license, release | Explicit unsandboxed execution consent; sandbox still missing | CLI denial regression; [Issue #6](https://github.com/zaengit/anx/issues/6) |
 
 ## Evidence

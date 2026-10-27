@@ -29,17 +29,20 @@ if [[ -z "$ANDROID_JAR" ]]; then
         -type f -name android.jar -print 2>/dev/null | sort -V | tail -n 1)"
 fi
 [[ -f "$ANDROID_JAR" ]] || { echo 'Missing SDK android.jar' >&2; exit 1; }
-mkdir -p build/external/classes build/external/dex
-find tests/fixtures/external-app -name '*.java' -print > build/external-sources.txt
+SOURCE_DIR="${ANX_FIXTURE_SOURCE:-"$SOURCE_DIR"}"
+OUTPUT_DIR="${ANX_FIXTURE_OUTPUT_DIR:-build/external}"
+OUTPUT_APK="${ANX_FIXTURE_APK:-"$OUTPUT_APK"}"
+mkdir -p "$OUTPUT_DIR/classes" "$OUTPUT_DIR/dex"
+find "$SOURCE_DIR" -name '*.java' -print > "$OUTPUT_DIR/sources.txt"
 # Key ABI test: javac sees ONLY the official Android SDK, not build/framework.
 javac --release 8 -encoding UTF-8 -cp "$ANDROID_JAR" \
-    -d build/external/classes @build/external-sources.txt
-jar --create --file build/external/app.jar -C build/external/classes .
+    -d "$OUTPUT_DIR/classes" @"$OUTPUT_DIR/sources.txt"
+jar --create --file "$OUTPUT_DIR/app.jar" -C "$OUTPUT_DIR/classes" .
 "$D8_CMD" --min-api 26 --lib "$ANDROID_JAR" \
-    --output build/external/dex build/external/app.jar
+    --output "$OUTPUT_DIR/dex" "$OUTPUT_DIR/app.jar"
 "$AAPT_CMD" package -f \
-    -M tests/fixtures/external-app/AndroidManifest.xml \
-    -I "$ANDROID_JAR" -F build/external/metadata.apk
+    -M "$SOURCE_DIR"/AndroidManifest.xml \
+    -I "$ANDROID_JAR" -F "$OUTPUT_DIR/metadata.apk"
 python3 scripts/package-demo-apk.py \
-    build/external/metadata.apk build/external/dex/classes.dex build/external.apk
-echo '[PASS] Independent Android-SDK-compiled APK: build/external.apk'
+    "$OUTPUT_DIR/metadata.apk" "$OUTPUT_DIR/dex"/classes.dex "$OUTPUT_APK"
+echo '[PASS] Independent Android-SDK-compiled APK: "$OUTPUT_APK"'

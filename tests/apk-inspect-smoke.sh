@@ -43,6 +43,9 @@ test -f build/unsafe-art-was-invoked || {
 echo '[PASS] Untrusted APK launch is denied by default and explicit opt-in is tested.'
 
 bash scripts/build-external-apk.sh
+bash scripts/build-jni-fixture.sh
+python3 scripts/anx.py inspect build/native-fixture.apk > build/native-fixture-inspect.out
+grep -Fq 'Package: org.anx.nativefixture' build/native-fixture-inspect.out
 python3 scripts/anx.py inspect build/external.apk > build/external-inspect.out
 grep -Fq 'Package: org.anx.external' build/external-inspect.out
 grep -Fq 'Application: org.anx.external.ExternalApplication' build/external-inspect.out

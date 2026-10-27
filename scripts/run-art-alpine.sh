@@ -77,6 +77,7 @@ echo "[art-container] ART source commit: a1edfc40e8cea3644d80e4e776d3fa7fc397a1c
             /anx/build/art-smoke/external-apk-run.log
         echo "[PASS] Official Android SDK ABI APK executed its Application and Activity on ART."
         ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-gui-protocol.sh
+        ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-jni-smoke.sh
         ANX_NATIVE_OUTPUT_DIR=/anx/build/art-smoke/native bash scripts/build-wayland.sh
         ANX_WAYLAND_BINARY=/anx/build/art-smoke/native/anx-wayland ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-wayland-headless.sh
     '
