@@ -16,6 +16,7 @@ cleanup() {
 trap cleanup EXIT
 cat > "$RUNTIME/sway.conf" <<'CONF'
 output HEADLESS-1 resolution 1280x720
+xwayland disable
 default_border none
 default_floating_border none
 focus_follows_mouse yes
@@ -57,11 +58,13 @@ target= geometry=
 for i in $(seq 1 120); do
     if ! kill -0 "$APP_PID" 2>/dev/null; then break; fi
     target="$(sed -n 's/^ANX_POINTER_TARGET \([0-9]*\) \([0-9]*\)$/\1 \2/p' build/sway-pointer-app.log | tail -1)"
-    geometry="$(swaymsg -r -t get_tree | jq -r '[.. | objects | select(.app_id? == "org.anx.wayland") | .rect] | last // empty | "\(.x) \(.y) \(.width) \(.height)"' || :)"
+    geometry="$(swaymsg -r -t get_tree | jq -r '[.. | objects | select((.app_id? == "org.anx.wayland") or (.name? == "ANX: org.demo")) | .rect] | last // empty | "\(.x) \(.y) \(.width) \(.height)"' || :)"
     if [[ -n "$target" && -n "$geometry" ]]; then break; fi
     sleep 0.2
 done
 if [[ -z "$target" || -z "$geometry" ]]; then
+    echo '[anx-test] Sway active window tree:' >&2
+    swaymsg -r -t get_tree | jq -c '[.. | objects | select(.type? == "con") | {name,app_id,rect}]' >&2 || :
     cat build/sway-pointer-app.log >&2
     cat build/sway-pointer-compositor.log >&2
     echo '[FAIL] GTK geometry or Sway Wayland window unavailable' >&2
