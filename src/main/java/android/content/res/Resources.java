@@ -11,6 +11,13 @@ public final class Resources {
     }
     public AssetManager getAssets() { return assets; }
     public CharSequence getText(int id) { return getString(id); }
+    /** Host-only lookup of compiled XML path for a resource ID. */
+    public String layoutPathForHost(int id) {
+        String path = CompiledValues.findString(assets.apkPathForHost(), id);
+        if (path == null || !path.matches("res/layout(?:-[a-zA-Z0-9_]+)?/[A-Za-z0-9_.-]+\\.xml"))
+            throw new NotFoundException("Unsupported layout resource: 0x" + Integer.toHexString(id));
+        return path;
+    }
     public String getString(int id) {
         String value = CompiledValues.findString(assets.apkPathForHost(), id);
         if (value == null)
