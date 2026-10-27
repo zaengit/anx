@@ -44,7 +44,7 @@ def wrap_console_art(
         raise SandboxError("sandbox input or persistent data directory does not exist")
     if not android_data.is_dir() or not app_data_root.is_dir():
         raise SandboxError("sandbox writable directories must be directories")
-    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)+", package):
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+", package):
         raise SandboxError("invalid package identifier for sandbox directory")
     # Never expose ALL other packages' data to a sandboxed application.
     package_dir = app_data_root / package
