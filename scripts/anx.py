@@ -11,6 +11,7 @@ import sys
 
 from apk_inspector import ApkError, format_metadata, inspect_apk
 from native_libraries import NativeLibraryError, extract_native_libraries
+from sandbox import SandboxError, wrap_console_art
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -18,7 +19,8 @@ DEFAULT_FRAMEWORK_DEX = ROOT / "build" / "framework" / "classes.dex"
 
 
 def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
-         backend: str, wayland_binary: str | None, unsafe_host_execution: bool) -> int:
+         backend: str, wayland_binary: str | None, unsafe_host_execution: bool,
+         experimental_sandbox: bool) -> int:
     try:
         metadata = inspect_apk(apk)
     except ApkError as exc:
@@ -82,6 +84,10 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
                             and resolved_native else "console")
         if selected_backend == "console":
             print("[anx] no compiled Wayland backend/session; using console backend", flush=True)
+    if experimental_sandbox and selected_backend != "console":
+        print("anx run: experimental sandbox supports --backend console only; "
+              "choose it explicitly even on a Wayland desktop.", file=sys.stderr)
+        return 2
     if selected_backend == "wayland" and not resolved_native:
         print("anx run: Wayland executable missing. Run: bash scripts/build-wayland.sh",
               file=sys.stderr)
@@ -119,8 +125,21 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
                 command.insert(1, "-Djava.library.path=" + extracted)
                 environment["ANX_NATIVE_LIBRARY_DIR"] = extracted
                 print(f"[anx] native ABI: {abi} ({len(names)} libraries)", flush=True)
+            if experimental_sandbox:
+                command = wrap_console_art(
+                    art_executable=Path(executable),
+                    framework_dex=framework_dex.resolve(),
+                    apk_path=metadata.path,
+                    launcher=manifest.launcher_activity or "",
+                    package=manifest.package_name,
+                    application=manifest.application_name or "-",
+                    android_data=data_dir.resolve(),
+                    app_data_root=app_data_root.resolve(),
+                    native_directory=Path(extracted) if extracted else None,
+                )
+                print("[anx] experimental console isolation via Bubblewrap", flush=True)
             return subprocess.run(command, env=environment, check=False).returncode
-    except (OSError, NativeLibraryError) as exc:
+    except (OSError, NativeLibraryError, SandboxError) as exc:
         print(f"anx run: failed to load host-native libraries: {exc}", file=sys.stderr)
         return 1
 
@@ -142,6 +161,11 @@ def main() -> int:
         action="store_true",
         help="explicitly accept unrestricted host access by trusted APK code",
     )
+    run_parser.add_argument(
+        "--experimental-sandbox",
+        action="store_true",
+        help="attempt Bubblewrap console isolation; fails closed, not security-certified",
+    )
     run_parser.add_argument("--wayland-binary",
                             help="path to compiled GTK4 Wayland host executable")
     argv = sys.argv[1:]
@@ -156,7 +180,8 @@ def main() -> int:
             print(f"anx inspect: {exc}", file=sys.stderr)
             return 1
     return _run(args.apk, args.art, args.framework_dex, args.android_data,
-                args.backend, args.wayland_binary, args.unsafe_host_execution)
+                args.backend, args.wayland_binary, args.unsafe_host_execution,
+                args.experimental_sandbox)
 
 
 if __name__ == "__main__":

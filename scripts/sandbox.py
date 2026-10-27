@@ -1,0 +1,82 @@
+"""Fail-closed *experimental* Bubblewrap console profile for ANX.
+
+Do not treat this as a complete or audited security sandbox. It restricts
+paths/network in a mount/user/pid/net namespace when supported by the host.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+import os
+import shutil
+
+
+class SandboxError(ValueError):
+    """The sandbox profile cannot enforce its expected preconditions."""
+
+
+def wrap_console_art(
+    *,
+    art_executable: Path,
+    framework_dex: Path,
+    apk_path: Path,
+    launcher: str,
+    package: str,
+    application: str,
+    android_data: Path,
+    app_data_root: Path,
+    native_directory: Path | None = None,
+    bubblewrap_executable: str | None = None,
+) -> list[str]:
+    bwrap = bubblewrap_executable or shutil.which("bwrap")
+    if not bwrap:
+        raise SandboxError("Bubblewrap (bwrap) is required for --experimental-sandbox")
+    art = art_executable.resolve()
+    if not (art.is_relative_to("/usr") or art.is_relative_to("/bin")):
+        raise SandboxError(
+            "experimental sandbox supports host ART installed under /usr or /bin only"
+        )
+    locations = [framework_dex, apk_path, android_data, app_data_root]
+    if native_directory:
+        locations.append(native_directory)
+    if not all(path.exists() for path in locations):
+        raise SandboxError("sandbox input or persistent data directory does not exist")
+    if not android_data.is_dir() or not app_data_root.is_dir():
+        raise SandboxError("sandbox writable directories must be directories")
+    if native_directory and not native_directory.is_dir():
+        raise SandboxError("sandbox native library directory is missing")
+    if not framework_dex.is_file() or not apk_path.is_file():
+        raise SandboxError("sandbox APK and framework must be regular files")
+
+    # No bind of /home, ~/.ssh, credentials, /etc, the host /tmp, or host /run.
+    # The only write-capable host paths are dedicated ANX data directories.
+    args = [
+        bwrap,
+        "--unshare-all", "--die-with-parent", "--new-session",
+        "--clearenv", "--setenv", "PATH", "/usr/bin:/bin",
+        "--setenv", "HOME", "/tmp",
+        "--setenv", "TMPDIR", "/tmp",
+        "--setenv", "ANDROID_DATA", "/anx/data",
+        "--setenv", "ANX_APP_DATA_HOME", "/anx/apps",
+        "--setenv", "ANX_BACKEND", "console",
+        "--setenv", "LANG", "C.UTF-8",
+        "--ro-bind", "/usr", "/usr",
+        "--ro-bind-try", "/lib", "/lib",
+        "--ro-bind-try", "/lib64", "/lib64",
+        "--ro-bind-try", "/bin", "/bin",
+        "--ro-bind-try", "/sbin", "/sbin",
+        "--dir", "/anx", "--dir", "/home", "--dir", "/root",
+        "--tmpfs", "/tmp",
+        "--proc", "/proc", "--dev", "/dev",
+        "--ro-bind", str(framework_dex.resolve()), "/anx/framework.dex",
+        "--ro-bind", str(apk_path.resolve()), "/anx/app.apk",
+        "--bind", str(android_data.resolve()), "/anx/data",
+        "--bind", str(app_data_root.resolve()), "/anx/apps",
+    ]
+    classpath = "/anx/framework.dex:/anx/app.apk"
+    java_args = [str(art), "-cp", classpath, "org.anx.launcher.Main",
+                 launcher, package, application, "/anx/app.apk"]
+    if native_directory:
+        args += ["--ro-bind", str(native_directory.resolve()), "/anx/native"]
+        java_args.insert(1, "-Djava.library.path=/anx/native")
+    args += ["--chdir", "/anx", "--"] + java_args
+    return args
