@@ -33,6 +33,9 @@ public final class ExternalActivity extends Activity {
                 getString(R.string.welcome_format_alias, "ANX", 3)))
             throw new AssertionError("Formatted string resource mismatch");
         System.out.println("[external] boolean integer and formatted strings ok");
+        if (!"loaded-from-classes2".equals(SecondaryDexSentinel.marker()))
+            throw new AssertionError("secondary DEX helper not loaded");
+        System.out.println("[external] DEX helper: " + SecondaryDexSentinel.marker());
         Button button = new Button(this);
         button.setText("Update");
         button.setOnClickListener(v -> {
