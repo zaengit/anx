@@ -137,4 +137,12 @@ echo "[art-container] ART source commit: a1edfc40e8cea3644d80e4e776d3fa7fc397a1c
         ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-jni-smoke.sh
         ANX_NATIVE_OUTPUT_DIR=/anx/build/art-smoke/native bash scripts/build-wayland.sh
         ANX_WAYLAND_BINARY=/anx/build/art-smoke/native/anx-wayland ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-wayland-headless.sh
+        ANX_VIRTUAL_POINTER_GEN_DIR=/anx/build/art-smoke/virtual-pointer \
+            ANX_VIRTUAL_POINTER_BIN_DIR=/anx/build/art-smoke/native \
+            bash scripts/build-virtual-pointer-test.sh
+        ART_CMD="$art_cmd" \
+            ANX_WAYLAND_BINARY=/anx/build/art-smoke/native/anx-wayland \
+            ANX_VIRTUAL_POINTER_BINARY=/anx/build/art-smoke/native/anx-virtual-pointer \
+            ART_SMOKE_LOG_DIR=/anx/build/art-smoke \
+            bash tests/art-sway-pointer.sh
     '

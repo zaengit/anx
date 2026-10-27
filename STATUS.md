@@ -10,7 +10,7 @@ small Android framework subset. ANX is not a VM or general Android OS.
 | M2 — APK metadata/loader | Supports bounded contiguous secondary DEX entries and host JNI pilot | SDK-built two-DEX APK invokes a class only in classes2.dex; ART CI |
 | M3 — App and Activity lifecycle | Done for documented subset | `tests/framework-smoke.sh` and ART standalone APK |
 | M4 — Wayland text/input backend | Experimental, headless integration verified | Native GTK4 + Weston + ART CI |
-| M5 — Interactive APK v0.1 MVP | In progress: ART + Wayland and basic native pointer bridge | JVM + headless Sway compositor-generated seat click/repaint; ART+Weston GTK signal regression; **physical desktop pointer unverified** |
+| M5 — Interactive APK v0.1 MVP | In progress: ART + headless Sway pointer input | SDK-compiled nested APK on ART + headless Sway receives compositor pointer events and repaints GTK; **physical desktop pointer unverified** |
 | M6 — Broader Android API coverage | Nested XML, typed resources, synthetic device identity and two independent FOSS APK fixtures | Apache-2.0 chiuki and MIT Appliberated SDK-source tests on ART/Wayland; broad compatibility still missing |
 | M7 — Bionic/JNI/native ABI | Experimental host-x86_64 JNI pilot; Bionic and ABI translation not implemented | Native ELF/ZIP safety tests and host-ART JNI fixture |
 | M8 — Sandbox, license, release | Experimental console Bubblewrap profile and consent gate; still unverified for hostile APKs | Fail-closed mock and policy tests; [Issue #6](https://github.com/zaengit/anx/issues/6) |

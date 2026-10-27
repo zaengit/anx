@@ -16,7 +16,15 @@ RUN apk add --no-cache \
 # execute alongside host ART, rather than testing two unrelated processes.
 RUN apk add --no-cache \
       --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community \
-      gtk4.0-dev pkgconf weston weston-backend-headless weston-shell-desktop font-dejavu
+      gtk4.0-dev pkgconf weston weston-backend-headless weston-shell-desktop font-dejavu \
+      sway jq dbus wayland-dev linux-headers
+# Alpine's packaged Sway may carry cap_sys_nice on its executable. Docker CI
+# does not include that capability in its bounding set, so execve() returns
+# EPERM. Remove the file capability in the *test image* instead of giving
+# the container any extra privilege. Headless pixman needs no real-time cap.
+RUN apk add --no-cache libcap-utils \
+    && if getcap /usr/bin/sway | grep -q 'cap_'; then setcap -r /usr/bin/sway; fi \
+    && ! getcap /usr/bin/sway | grep -q 'cap_'
 
 WORKDIR /tmp
 RUN wget -O art_standalone.tar.gz \
