@@ -12,6 +12,7 @@ import sys
 from apk_inspector import ApkError, format_metadata, inspect_apk
 from native_libraries import NativeLibraryError, extract_native_libraries
 from sandbox import SandboxError, wrap_console_art
+from secondary_dex import SecondaryDexError, extract_secondary_dex
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,9 +40,6 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
     manifest = metadata.manifest
     if not metadata.dex_files:
         print("anx run: APK contains no classes.dex", file=sys.stderr)
-        return 1
-    if len(metadata.dex_files) > 1:
-        print("anx run: multidex APKs are detected but not loadable yet", file=sys.stderr)
         return 1
     if len(manifest.launchers) != 1:
         print("anx run: expected exactly one MAIN/LAUNCHER Activity", file=sys.stderr)
@@ -117,9 +115,16 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
     try:
         # Keep the checked, isolated extraction directory alive while ART runs.
         # This is not an OS sandbox; the user already opted into host execution.
-        directory = (tempfile.TemporaryDirectory(prefix="anx-native-")
-                     if metadata.native_abis else contextlib.nullcontext(None))
-        with directory as extracted:
+        with contextlib.ExitStack() as cleanup:
+            extracted = (cleanup.enter_context(tempfile.TemporaryDirectory(prefix="anx-native-"))
+                         if metadata.native_abis else None)
+            dex_dir = (cleanup.enter_context(tempfile.TemporaryDirectory(prefix="anx-dex-"))
+                       if len(metadata.dex_files) > 1 else None)
+            secondary = (extract_secondary_dex(metadata, Path(dex_dir))
+                         if dex_dir else ())
+            if secondary:
+                command[2] = os.pathsep.join((class_path, *(str(p) for p in secondary)))
+                print(f"[anx] secondary DEX files: {len(secondary)}", flush=True)
             if extracted is not None:
                 abi, names = extract_native_libraries(metadata, Path(extracted))
                 command.insert(1, "-Djava.library.path=" + extracted)
@@ -136,11 +141,12 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
                     android_data=data_dir.resolve(),
                     app_data_root=app_data_root.resolve(),
                     native_directory=Path(extracted) if extracted else None,
+                    secondary_dex_paths=secondary,
                 )
                 print("[anx] experimental console isolation via Bubblewrap", flush=True)
             return subprocess.run(command, env=environment, check=False).returncode
-    except (OSError, NativeLibraryError, SandboxError) as exc:
-        print(f"anx run: failed to load host-native libraries: {exc}", file=sys.stderr)
+    except (OSError, NativeLibraryError, SecondaryDexError, SandboxError) as exc:
+        print(f"anx run: host execution setup failed: {exc}", file=sys.stderr)
         return 1
 
 

@@ -82,6 +82,18 @@ echo "[art-container] ART source commit: a1edfc40e8cea3644d80e4e776d3fa7fc397a1c
         grep -Fq "[external] boolean integer and formatted strings ok" \
             /anx/build/art-smoke/external-apk-run.log
         echo "[PASS] Official Android SDK ABI APK executed its Application and Activity on ART."
+        if ! python3 scripts/anx.py run build/multidex-fixture.apk \
+            --unsafe-host-execution --art "$art_cmd" --backend console \
+            --framework-dex build/framework/classes.dex \
+            --android-data /tmp/anx-multidex-data \
+            > /anx/build/art-smoke/multidex-run.log 2>&1; then
+            cat /anx/build/art-smoke/multidex-run.log >&2
+            exit 1
+        fi
+        grep -Fq "[anx] secondary DEX files: 1" /anx/build/art-smoke/multidex-run.log
+        grep -Fq "[external] DEX helper: loaded-from-classes2" /anx/build/art-smoke/multidex-run.log
+        grep -Fq "[anx] onDestroy" /anx/build/art-smoke/multidex-run.log
+        echo "[PASS] Host ART resolved an SDK-compiled Java method from classes2.dex."
         ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-gui-protocol.sh
         ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-jni-smoke.sh
         ANX_NATIVE_OUTPUT_DIR=/anx/build/art-smoke/native bash scripts/build-wayland.sh

@@ -43,6 +43,7 @@ test -f build/unsafe-art-was-invoked || {
 echo '[PASS] Untrusted APK launch is denied by default and explicit opt-in is tested.'
 
 bash scripts/build-external-apk.sh
+bash scripts/build-multidex-fixture.sh
 bash scripts/build-jni-fixture.sh
 python3 scripts/anx.py inspect build/native-fixture.apk > build/native-fixture-inspect.out
 grep -Fq 'Package: org.anx.nativefixture' build/native-fixture-inspect.out
@@ -51,6 +52,28 @@ grep -Fq 'Package: org.anx.external' build/external-inspect.out
 grep -Fq 'Application: org.anx.external.ExternalApplication' build/external-inspect.out
 grep -Fq 'Launcher activity: org.anx.external.ExternalActivity' build/external-inspect.out
 echo '[PASS] APK built against official android.jar has a valid binary manifest.'
+python3 scripts/anx.py inspect build/multidex-fixture.apk > build/multidex-inspect.out
+grep -Fq 'DEX: classes.dex, classes2.dex' build/multidex-inspect.out
+cat > build/fake-multidex-art <<'FAKE_ART'
+#!/bin/sh
+printf '%s\n' "$@" > build/multidex-argv.out
+exit 0
+FAKE_ART
+chmod +x build/fake-multidex-art
+python3 scripts/anx.py run build/multidex-fixture.apk \
+    --art build/fake-multidex-art --backend console --unsafe-host-execution \
+    --framework-dex build/framework/classes.dex > build/multidex-mock-run.out 2>&1
+grep -Fq '[anx] secondary DEX files: 1' build/multidex-mock-run.out
+grep -Fq 'classes2.dex' build/multidex-argv.out
+python3 - <<'PY'
+from pathlib import Path
+args = Path("build/multidex-argv.out").read_text().splitlines()
+classpath = args[args.index("-cp") + 1]
+secondary = Path(classpath.split(":")[-1])
+assert secondary.name == "classes2.dex"
+assert not secondary.exists(), "temporary DEX file still exists after ART exit"
+print("[PASS] Secondary DEX included in ART classpath and temp directory removed")
+PY
 
 printf 'not a ZIP archive' > build/not-an-apk.apk
 if python3 scripts/anx.py inspect build/not-an-apk.apk >/dev/null 2>&1; then

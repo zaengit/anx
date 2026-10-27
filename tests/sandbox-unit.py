@@ -61,6 +61,15 @@ class SandboxCommandTest(unittest.TestCase):
         pos = argv.index(str(self.native))
         self.assertEqual("--ro-bind", argv[pos - 1])
 
+    def test_secondary_dex_is_readonly_and_on_classpath(self):
+        secondary = self.temp.name + "/classes2.dex"
+        pathlib.Path(secondary).write_bytes(b"dex\n035\0" + b"fake")
+        argv = self.command(secondary_dex_paths=(pathlib.Path(secondary),))
+        self.assertIn("/anx/dex/classes2.dex", argv)
+        self.assertEqual(argv[argv.index("-cp") + 1],
+                         "/anx/framework.dex:/anx/app.apk:/anx/dex/classes2.dex")
+        self.assertEqual(argv[argv.index(secondary) - 1], "--ro-bind")
+
     def test_cannot_read_other_package_mount(self):
         sibling = self.apps / "org.example.other"
         sibling.mkdir()

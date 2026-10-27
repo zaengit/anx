@@ -23,11 +23,21 @@ from `src/demo/java`, separate from `build/framework/classes.dex`. ART receives
 the framework DEX and APK on its classpath, and the launcher class is selected
 from the manifest.
 
-The loader currently requires exactly one launcher Activity, one top-level
-DEX (`classes.dex`), and no native `.so` files. It instantiates the manifest `Application` class when provided, passes the APK
-path to a read-only `AssetManager` for `assets/` streams, and supports main-thread
-lifecycle and immediate Handler callbacks. It does not parse `resources.arsc`,
-load multidex or JNI, or create a graphical window.
+The loader requires exactly one launcher Activity and a contiguous series of
+DEX entries (`classes.dex`, `classes2.dex`, etc.). On the experimental ART
+execution path, ANX extracts at most **15 secondary DEX files** into a private
+temporary directory, rejects malformed headers, ZIP symlinks and excessive
+decompressed sizes (64 MiB each, 128 MiB combined), and adds them to ART's
+classpath. The directory is deleted after ART exits. APK metadata inspection
+does not extract entries. The independent SDK test fixture places a method
+used by `ExternalActivity` **only** in `classes2.dex`; ART calls it in CI.
+`classes.dex` is left inside the APK. The experimental Bubblewrap console
+profile binds secondary DEX files read-only.
+
+A single matching x86_64 **Linux-host-built** JNI library subset, compiled
+string/color/dimension/bool/integer resources and the GTK4 Wayland MVP also
+exist. These do not imply Bionic compatibility, Android system services,
+full `resources.arsc` configuration handling or general third-party APK support.
 Malformed archives and unsupported inputs fail with a targeted error.
 
 Truncated UTF-8 string lengths in binary XML now raise a controlled

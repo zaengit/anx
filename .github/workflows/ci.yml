@@ -44,6 +44,9 @@ jobs:
       - name: Test fail-closed Bubblewrap command construction
         run: python3 tests/sandbox-unit.py
 
+      - name: Test secondary DEX extraction guards
+        run: python3 tests/secondary-dex-unit.py
+
       - name: Test native library ABI and extraction safety
         run: python3 tests/native-libraries-unit.py
 

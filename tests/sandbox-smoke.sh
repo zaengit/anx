@@ -47,3 +47,22 @@ if python3 scripts/anx.py run build/demo.apk \
 fi
 grep -Fq 'supports --backend console only' build/sandbox-gui-denied.out
 echo '[PASS] Experimental sandbox refuses unsupported Wayland execution.'
+
+# Secondary DEX must be exposed read-only inside Bubblewrap (not lost).
+rm -f "$TRACE"
+set +e
+PATH="$ROOT/build/sandbox-mock:$PATH" ANX_BWRAP_TRACE="$TRACE" \
+    python3 scripts/anx.py run build/multidex-fixture.apk \
+    --art /usr/bin/true --framework-dex build/framework/classes.dex \
+    --backend console --unsafe-host-execution --experimental-sandbox \
+    > build/sandbox-multidex.out 2>&1
+status=$?
+set -e
+if [[ "$status" -ne 42 ]]; then
+    cat build/sandbox-multidex.out >&2
+    echo "[FAIL] Multidex sandbox did not reach restricted Bubblewrap backend" >&2
+    exit 1
+fi
+grep -Fxq -- '/anx/dex/classes2.dex' "$TRACE"
+grep -Fxq -- '--ro-bind' "$TRACE"
+echo '[PASS] Secondary DEX mounted read-only inside experimental sandbox.'

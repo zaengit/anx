@@ -7,7 +7,7 @@ small Android framework subset. ANX is not a VM or general Android OS.
 | --- | --- | --- |
 | M0 — JVM proof of concept | Done | `tests/smoke.sh` on CI |
 | M1 — Host ART bootstrap | Done on pinned reference | ART CI `HelloDex` + framework lifecycle |
-| M2 — APK metadata/loader | Done for one-DEX/no-native subset | Binary manifest + independently SDK-compiled test APK |
+| M2 — APK metadata/loader | Supports bounded contiguous secondary DEX entries and host JNI pilot | SDK-built two-DEX APK invokes a class only in classes2.dex; ART CI |
 | M3 — App and Activity lifecycle | Done for documented subset | `tests/framework-smoke.sh` and ART standalone APK |
 | M4 — Wayland text/input backend | Experimental, headless integration verified | Native GTK4 + Weston + ART CI |
 | M5 — Interactive APK v0.1 MVP | In progress: ART + Wayland and simple compiled resource values | GTK click, live repaint, SDK R.string/color/dimen fixture; **physical pointer unverified** |

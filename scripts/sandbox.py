@@ -26,6 +26,7 @@ def wrap_console_art(
     android_data: Path,
     app_data_root: Path,
     native_directory: Path | None = None,
+    secondary_dex_paths: tuple[Path, ...] = (),
     bubblewrap_executable: str | None = None,
 ) -> list[str]:
     bwrap = (shutil.which("bwrap") if bubblewrap_executable is None
@@ -40,6 +41,7 @@ def wrap_console_art(
     locations = [framework_dex, apk_path, android_data, app_data_root]
     if native_directory:
         locations.append(native_directory)
+    locations.extend(secondary_dex_paths)
     if not all(path.exists() for path in locations):
         raise SandboxError("sandbox input or persistent data directory does not exist")
     if not android_data.is_dir() or not app_data_root.is_dir():
@@ -63,6 +65,11 @@ def wrap_console_art(
         raise SandboxError("per-package ART cache directory escaped its root")
     if native_directory and not native_directory.is_dir():
         raise SandboxError("sandbox native library directory is missing")
+    if len(secondary_dex_paths) > 15:
+        raise SandboxError("too many secondary DEX paths")
+    for i, secondary in enumerate(secondary_dex_paths, start=2):
+        if secondary.name != f"classes{i}.dex" or not secondary.is_file() or secondary.is_symlink():
+            raise SandboxError("invalid secondary DEX path for sandbox")
     if not framework_dex.is_file() or not apk_path.is_file():
         raise SandboxError("sandbox APK and framework must be regular files")
 
@@ -93,6 +100,12 @@ def wrap_console_art(
         "--bind", str(package_dir.resolve()), "/anx/apps/" + package,
     ]
     classpath = "/anx/framework.dex:/anx/app.apk"
+    if secondary_dex_paths:
+        args += ["--dir", "/anx/dex"]
+        for secondary in secondary_dex_paths:
+            guest = "/anx/dex/" + secondary.name
+            args += ["--ro-bind", str(secondary.resolve()), guest]
+            classpath += ":" + guest
     java_args = [str(art), "-cp", classpath, "org.anx.launcher.Main",
                  launcher, package, application, "/anx/app.apk"]
     if native_directory:
