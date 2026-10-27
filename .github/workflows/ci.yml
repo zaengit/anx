@@ -41,6 +41,9 @@ jobs:
       - name: Run JVM smoke test
         run: bash tests/smoke.sh
 
+      - name: Test native library ABI and extraction safety
+        run: python3 tests/native-libraries-unit.py
+
       - name: Test malformed binary manifest handling
         run: python3 tests/manifest-safety.py
 
