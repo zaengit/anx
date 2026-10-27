@@ -114,6 +114,7 @@ echo "[art-container] ART source commit: a1edfc40e8cea3644d80e4e776d3fa7fc397a1c
             exit 1
         fi
         grep -Fq "[nested] XML hierarchy and IDs resolved" /anx/build/art-smoke/nested-apk.log
+        grep -Fq "[nested] invalid XML callback rejected" /anx/build/art-smoke/nested-apk.log
         grep -Fq "[linux-console-backend] TextView: Nested XML ready" /anx/build/art-smoke/nested-apk.log
         grep -Fq "[linux-console-backend] Button: Update nested" /anx/build/art-smoke/nested-apk.log
         grep -Fq "[anx] onDestroy" /anx/build/art-smoke/nested-apk.log
