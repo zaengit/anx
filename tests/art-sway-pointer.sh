@@ -41,7 +41,7 @@ for i in $(seq 1 120); do
     if ! kill -0 "$SWAY_PID" 2>/dev/null; then break; fi
     sleep 0.2
 done
-if [[ ! -S "$SWAYSOCK" ]]; then cat build/sway-pointer-compositor.log >&2; exit 1; fi
+if [[ ! -S "$SWAYSOCK" ]]; then cat "$LOG_DIR/art-sway-compositor.log" >&2; exit 1; fi
 for i in $(seq 1 30); do
     WAYLAND_DISPLAY=
     for socket in "$RUNTIME"/wayland-*; do
@@ -50,15 +50,15 @@ for i in $(seq 1 30); do
     [[ -n "$WAYLAND_DISPLAY" ]] && break
     sleep 0.2
 done
-[[ -n "${WAYLAND_DISPLAY:-}" ]] || { cat build/sway-pointer-compositor.log >&2; exit 1; }
+[[ -n "${WAYLAND_DISPLAY:-}" ]] || { cat "$LOG_DIR/art-sway-compositor.log" >&2; exit 1; }
 export WAYLAND_DISPLAY
 swaymsg -r -t get_outputs > "$LOG_DIR/art-sway-outputs.json"
-jq -e 'any(.[]; .active == true)' build/sway-pointer-outputs.json >/dev/null
+jq -e 'any(.[]; .active == true)' "$LOG_DIR/art-sway-outputs.json" >/dev/null
 
 # A persistent wlroots virtual-pointer creates the seat capability GTK needs.
 # One-shot pointer commands would add and remove that capability too quickly.
 coproc ANX_POINTER {
-    $POINTER_BIN > "$RUNTIME/pointer.log" 2>&1
+    "$POINTER_BIN" > "$RUNTIME/pointer.log" 2>&1
 }
 POINTER_PID="$ANX_POINTER_PID"
 POINTER_FD="${ANX_POINTER[1]}"
@@ -88,7 +88,7 @@ APP_PID=$!
 target= geometry=
 for i in $(seq 1 120); do
     if ! kill -0 "$APP_PID" 2>/dev/null; then break; fi
-    target="$(sed -n 's/^ANX_POINTER_TARGET \([0-9]*\) \([0-9]*\)$/\1 \2/p' build/sway-pointer-app.log | tail -1)"
+    target="$(sed -n 's/^ANX_POINTER_TARGET \([0-9]*\) \([0-9]*\)$/\1 \2/p' "$LOG_DIR/art-sway-app.log" | tail -1)"
     geometry="$(swaymsg -r -t get_tree | jq -r '[.. | objects | select((.app_id? == "org.anx.wayland") or (.name? == "ANX: org.anx.nested")) | .rect] | last // empty | "\(.x) \(.y) \(.width) \(.height)"' || :)"
     if [[ -n "$target" && -n "$geometry" ]]; then break; fi
     sleep 0.2
@@ -96,8 +96,8 @@ done
 if [[ -z "$target" || -z "$geometry" ]]; then
     echo '[anx-test] Sway active window tree:' >&2
     swaymsg -r -t get_tree | jq -c '[.. | objects | select(.type? == "con") | {name,app_id,rect}]' >&2 || :
-    cat build/sway-pointer-app.log >&2
-    cat build/sway-pointer-compositor.log >&2
+    cat "$LOG_DIR/art-sway-app.log" >&2
+    cat "$LOG_DIR/art-sway-compositor.log" >&2
     echo '[FAIL] GTK geometry or Sway Wayland window unavailable' >&2
     exit 1
 fi
@@ -118,7 +118,7 @@ if ! kill -0 "$POINTER_PID" 2>/dev/null; then
     echo '[FAIL] Persistent virtual pointer exited early' >&2
     exit 1
 fi
-if ! wait "$APP_PID"; then cat build/sway-pointer-app.log >&2; exit 1; fi
+if ! wait "$APP_PID"; then cat "$LOG_DIR/art-sway-app.log" >&2; exit 1; fi
 APP_PID=
 for expected in \
     '[nested] XML hierarchy and IDs resolved' \
@@ -128,8 +128,8 @@ for expected in \
     '[anx-wayland] label updated' \
     '[anx-wayland] window closed' \
     '[anx] onDestroy'; do
-    grep -Fq "$expected" build/sway-pointer-app.log || {
-        cat build/sway-pointer-app.log >&2
+    grep -Fq "$expected" "$LOG_DIR/art-sway-app.log" || {
+        cat "$LOG_DIR/art-sway-app.log" >&2
         echo "[FAIL] Missing callback: $expected" >&2
         exit 1
     }
