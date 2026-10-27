@@ -29,7 +29,10 @@ bash scripts/run-art-alpine.sh
 
 The binary XML inflater now accepts a root TextView or a **vertical LinearLayout**
 with nested vertical layouts, TextView and Button nodes, each with optional
-`android:id` and literal or R.string-backed `android:text`. The SDK-only
+`android:id`, literal or R.string-backed `android:text`, and XML
+`Button android:onClick="methodName"` bound only to a public `void` Activity
+method taking one View argument. Missing/mismatched method signatures fail at
+inflation, preserving the existing Activity content. The SDK-only
 `tests/fixtures/nested-app` exercises `findViewById`, nested IDs and a click
 callback under ART + GTK/Weston. It is **not a second independent third-party
 APK**. The inflater caps layouts at 1 MiB, at most 16 nodes, 4 nesting levels,

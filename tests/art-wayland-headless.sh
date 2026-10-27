@@ -135,7 +135,8 @@ fi
 for expected in \
     '[nested] XML hierarchy and IDs resolved' \
     '[anx-wayland] window ready' \
-    '[nested] click updated label' \
+    '[nested] invalid XML callback rejected' \
+    '[nested] XML android:onClick updated label' \
     '[anx-wayland] button clicked' \
     '[anx-wayland] label updated' \
     '[anx-wayland] window closed'; do

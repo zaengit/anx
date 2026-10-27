@@ -8,6 +8,8 @@ import android.widget.LinearLayout;
 import android.view.ViewGroup;
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -140,6 +142,33 @@ public final class CompiledLayout {
         Node(String tag, View view) { this.tag = tag; this.view = view; }
     }
 
+    private static void bindActivityClick(Context context, View target, String name) {
+        if (name == null || name.length() > 80 ||
+                !name.matches("[a-zA-Z_$][a-zA-Z0-9_$]*"))
+            throw unsupported("invalid android:onClick method name");
+        if (!(context instanceof android.app.Activity))
+            throw unsupported("android:onClick needs an Activity context");
+        final Method callback;
+        try {
+            callback = context.getClass().getMethod(name, View.class);
+        } catch (NoSuchMethodException | SecurityException ex) {
+            throw unsupported("Missing public Activity method " + name + "(View)");
+        }
+        if (callback.getReturnType() != Void.TYPE)
+            throw unsupported("android:onClick must return void: " + name);
+        target.setOnClickListener(clicked -> {
+            try {
+                callback.invoke(context, clicked);
+            } catch (IllegalAccessException | IllegalArgumentException ex) {
+                throw new IllegalStateException("Cannot invoke XML onClick " + name, ex);
+            } catch (InvocationTargetException ex) {
+                Throwable cause = ex.getCause();
+                if (cause instanceof RuntimeException) throw (RuntimeException)cause;
+                if (cause instanceof Error) throw (Error)cause;
+                throw new IllegalStateException("XML onClick failed: " + name, cause);
+            }
+        });
+    }
     private View parse(Context context) {
         if (data.length < 8 || u16(0) != XML) throw unsupported("not binary XML");
         int[] root = chunk(0, data.length);
@@ -190,6 +219,10 @@ public final class CompiledLayout {
                         if (type == TYPE_REFERENCE) label.setText(context.getString(value));
                         else if (type == TYPE_STRING) label.setText(string(strings, value));
                         else throw unsupported("unsupported android:text type");
+                    } else if ("onClick".equals(name) && view instanceof Button) {
+                        if (type != TYPE_STRING)
+                            throw unsupported("android:onClick must be a string");
+                        bindActivityClick(context, view, string(strings, value));
                     } else if ("orientation".equals(name) && view instanceof LinearLayout) {
                         if (type != TYPE_INT_DEC || value != LinearLayout.VERTICAL)
                             throw unsupported("only vertical LinearLayout supported");
