@@ -66,3 +66,18 @@ both on a JVM mock peer and on real host ART + Weston.
 
 This is a **coarse timer polling bridge**, not Android vsync, Choreographer,
 precision timers, a full event scheduler, or a guarantee for background tasks.
+
+## Headless Sway compositor pointer input regression (M5)
+
+`tests/wayland-sway-pointer.sh` runs an isolated headless Sway compositor
+with a JVM Activity and the **real GTK4 Wayland client**. It reads the bounds
+of a realized GTK Button and its compositor window, then uses Sway IPC to
+move the seat cursor and press/release button1. It verifies the Java click
+callback and GTK label repaint. Unlike `ANX_GUI_TEST_AUTOCLICK=1`, it
+does not emit GTK's `clicked` signal directly. GTK geometry diagnostics
+are enabled only with `ANX_GUI_TEST_REPORT_BUTTON_GEOMETRY=1`.
+
+This is **compositor-generated pointer input**, not a physical mouse test.
+It does not prove a native desktop session's resize/focus behavior, touch,
+other widget interactions or long-running app stability. The pinned-ART/Weston
+regression remains separate and continues to use a GTK test signal.

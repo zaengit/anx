@@ -72,6 +72,20 @@ static gboolean close_text_for_test(gpointer user_data) {
     gtk_window_close(GTK_WINDOW(state->window));
     return G_SOURCE_REMOVE;
 }
+/* CI geometry only: the compositor, not GTK test signals, injects the click. */
+static gboolean report_pointer_target_for_test(gpointer user_data) {
+    HostWindow *state = user_data;
+    if (state->button == NULL || state->window == NULL) return G_SOURCE_REMOVE;
+    graphene_rect_t bounds;
+    if (!gtk_widget_compute_bounds(state->button, state->window, &bounds))
+        return G_SOURCE_REMOVE;
+    if (bounds.size.width <= 1 || bounds.size.height <= 1)
+        return G_SOURCE_REMOVE;
+    int cx = (int)(bounds.origin.x + bounds.size.width / 2);
+    int cy = (int)(bounds.origin.y + bounds.size.height / 2);
+    g_printerr("ANX_POINTER_TARGET %d %d\n", cx, cy);
+    return G_SOURCE_REMOVE;
+}
 static gboolean click_for_test(gpointer user_data) {
     HostWindow *state = user_data;
     if (state->button != NULL && !state->closing)
@@ -164,6 +178,9 @@ static void on_activate(GtkApplication *app, gpointer user_data) {
     /* Keep the Java main Looper advancing while no input events arrive. */
     g_timeout_add(50, on_pulse, state);
     /* CI-only: exercise a real, realized GTK button signal under Weston. */
+    if (g_strcmp0(g_getenv("ANX_GUI_TEST_REPORT_BUTTON_GEOMETRY"), "1") == 0
+            && state->button != NULL)
+        g_timeout_add(250, report_pointer_target_for_test, state);
     if (state->test_autoclick && state->button != NULL)
         g_timeout_add(300, click_for_test, state);
     if (state->test_autoclose_text_only && !state->test_longpress_text_only
