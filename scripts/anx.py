@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """ANX command line for APK inspection and the current ART demo subset."""
 import argparse
+import contextlib
+import tempfile
 import os
 from pathlib import Path
 import shutil
@@ -8,6 +10,7 @@ import subprocess
 import sys
 
 from apk_inspector import ApkError, format_metadata, inspect_apk
+from native_libraries import NativeLibraryError, extract_native_libraries
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -37,9 +40,6 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
         return 1
     if len(metadata.dex_files) > 1:
         print("anx run: multidex APKs are detected but not loadable yet", file=sys.stderr)
-        return 1
-    if metadata.native_abis:
-        print("anx run: APK contains native libraries; JNI loading is not implemented", file=sys.stderr)
         return 1
     if len(manifest.launchers) != 1:
         print("anx run: expected exactly one MAIN/LAUNCHER Activity", file=sys.stderr)
@@ -109,9 +109,19 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
     print(f"[anx] package: {manifest.package_name}", flush=True)
     print(f"[anx] launcher: {manifest.launcher_activity}", flush=True)
     try:
-        return subprocess.run(command, env=environment, check=False).returncode
-    except OSError as exc:
-        print(f"anx run: failed to start ART: {exc}", file=sys.stderr)
+        # Keep the checked, isolated extraction directory alive while ART runs.
+        # This is not an OS sandbox; the user already opted into host execution.
+        directory = (tempfile.TemporaryDirectory(prefix="anx-native-")
+                     if metadata.native_abis else contextlib.nullcontext(None))
+        with directory as extracted:
+            if extracted is not None:
+                abi, names = extract_native_libraries(metadata, Path(extracted))
+                command.insert(1, "-Djava.library.path=" + extracted)
+                environment["ANX_NATIVE_LIBRARY_DIR"] = extracted
+                print(f"[anx] native ABI: {abi} ({len(names)} libraries)", flush=True)
+            return subprocess.run(command, env=environment, check=False).returncode
+    except (OSError, NativeLibraryError) as exc:
+        print(f"anx run: failed to load host-native libraries: {exc}", file=sys.stderr)
         return 1
 
 
