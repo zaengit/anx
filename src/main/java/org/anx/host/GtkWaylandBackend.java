@@ -61,6 +61,7 @@ public final class GtkWaylandBackend implements WindowBackend {
             boolean clicked = false;
             boolean updated = false;
             boolean verifiedTextOnly = false;
+            boolean longClicked = false;
             String lastSent = content.label.getText().toString();
             String line;
             while ((line = input.readLine()) != null) {
@@ -78,6 +79,13 @@ public final class GtkWaylandBackend implements WindowBackend {
                     lastSent = content.label.getText().toString();
                     output.flush();
                     System.out.println("[anx-wayland] button clicked");
+                } else if ("LONG_CLICK".equals(line)) {
+                    if (!ready || content.label == null)
+                        throw new IOException("Unexpected long-press event");
+                    longClicked = content.label.performLongClick();
+                    Looper.myLooper().drainForHost();
+                    if (longClicked)
+                        System.out.println("[anx-wayland] label long-clicked");
                 } else if ("PULSE".equals(line)) {
                     if (!ready) throw new IOException("Unexpected Looper pulse");
                     Looper.myLooper().drainForHost();
@@ -114,6 +122,9 @@ public final class GtkWaylandBackend implements WindowBackend {
             if ("1".equals(System.getenv("ANX_GUI_TEST_AUTOCLOSE_TEXT_ONLY"))
                     && !verifiedTextOnly)
                 throw new IOException("Wayland text-only label was not verified");
+            if ("1".equals(System.getenv("ANX_GUI_TEST_LONGPRESS_TEXT_ONLY"))
+                    && (!longClicked || !verifiedTextOnly))
+                throw new IOException("Wayland long-press test was not handled");
             System.out.println("[anx-wayland] window closed");
         } catch (IOException error) {
             throw new IllegalStateException("Wayland window unavailable: " + error.getMessage(), error);

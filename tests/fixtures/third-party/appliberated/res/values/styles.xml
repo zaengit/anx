@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2017-2025 Appliberated
+     https://www.appliberated.com
+
+     Licensed under the MIT License.
+     See LICENSE file in the project root for full license information.
+-->
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="android:Theme">
+        <item name="android:windowBackground">@color/colorPrimary</item>
+    </style>
+
+</resources>

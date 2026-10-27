@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2017-2025 Appliberated
+     https://www.appliberated.com
+ 
+     Licensed under the MIT License.
+     See LICENSE file in the project root for full license information.
+-->
+<resources>
+    <color name="colorPrimary">#000000</color>
+    <color name="colorPrimaryDark">#000000</color>
+    <color name="colorAccent">#A4C639</color>
+    <color name="hello_color">#FFFFFF</color>
+</resources>

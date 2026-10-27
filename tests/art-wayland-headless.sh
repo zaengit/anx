@@ -174,3 +174,33 @@ for expected in \
 done
 echo '[PASS] Genuine independently authored APK XML TextView rendered in GTK Wayland.'
 
+# Second independent MIT source APK, compiled against the SDK. GTK long press
+# is tested with a synthetic GtkGestureLongPress signal (not pointer injection).
+# Clipboard remains strictly in-process, never forwarded to the desktop.
+export ANX_GUI_TEST_LONGPRESS_TEXT_ONLY=1
+if ! timeout 40 python3 scripts/anx.py run build/self-aware-third-party.apk \
+    --unsafe-host-execution --art "$ART_CMD" --backend wayland \
+    --wayland-binary "$NATIVE_BIN" \
+    --framework-dex build/framework/classes.dex \
+    --android-data "$RUNTIME/android-data" \
+    > "$LOG_DIR/self-aware-art-wayland.log" 2>&1; then
+    cat "$LOG_DIR/self-aware-art-wayland.log" >&2
+    echo '[FAIL] Second independently authored MIT APK on ART/GTK/Weston' >&2
+    exit 1
+fi
+for expected in \
+    '[anx-wayland] window ready' \
+    '[anx-wayland] text-only GTK label verified' \
+    '[anx-wayland] label long-clicked' \
+    '[anx-toast/console] copied to clipboard' \
+    '[anx-wayland] window closed' \
+    '[anx] onDestroy'; do
+    grep -Fq "$expected" "$LOG_DIR/self-aware-art-wayland.log" || {
+        cat "$LOG_DIR/self-aware-art-wayland.log" >&2
+        echo "[FAIL] Second MIT APK log absent: $expected" >&2
+        exit 1
+    }
+done
+echo '[PASS] Second MIT Activity displayed TextView, received GTK synthetic long-press, ran clipboard/Toast handler.'
+unset ANX_GUI_TEST_LONGPRESS_TEXT_ONLY
+
