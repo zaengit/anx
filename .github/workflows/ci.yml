@@ -88,5 +88,16 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install Bubblewrap
         run: sudo apt-get update && sudo apt-get install -y bubblewrap
-      - name: Verify actual mount/network namespaces and file permissions
-        run: python3 tests/sandbox-kernel.py
+      - name: Probe unprivileged namespace support without weakening AppArmor
+        run: |
+          set +e
+          python3 tests/sandbox-kernel.py
+          status=$?
+          set -e
+          if [[ "$status" -eq 77 ]]; then
+            echo "::warning::Ubuntu runner denies unprivileged Bubblewrap; ANX must fail closed in this environment."
+          elif [[ "$status" -ne 0 ]]; then
+            exit "$status"
+          fi
+      - name: Verify actual namespaces under privileged CI probe
+        run: sudo -n python3 tests/sandbox-kernel.py

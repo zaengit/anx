@@ -96,6 +96,16 @@ def main() -> int:
             result = subprocess.run(command, capture_output=True, text=True,
                                     timeout=20, env=environment, check=False)
             if result.returncode != 0:
+                # Ubuntu/AppArmor and CI kernels may reject user or network
+                # namespace setup. Report this separately; do NOT retry ART.
+                permission_error = result.stderr.startswith("bwrap:") and (
+                    "Operation not permitted" in result.stderr
+                    or "Permission denied" in result.stderr
+                )
+                if permission_error:
+                    print("[UNSUPPORTED] Kernel policy denies Bubblewrap setup: "
+                          + result.stderr.strip(), file=sys.stderr)
+                    return 77
                 print("[FAIL] Bubblewrap kernel isolation probe failed:", file=sys.stderr)
                 print(result.stdout, file=sys.stderr)
                 print(result.stderr, file=sys.stderr)

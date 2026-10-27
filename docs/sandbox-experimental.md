@@ -52,9 +52,13 @@ the host's home-only marker is inaccessible, inherited environment is
 cleared, the APK and framework mounts are read-only, outbound TCP cannot
 connect, and only explicitly writable ANX data directories persist writes.
 
-A CI job runs this on Ubuntu 24.04 with `bubblewrap` installed. If Ubuntu's
-AppArmor/userns rules prevent Bubblewrap execution the job **fails**; it does
-not disable host protections or substitute a mock. Passing this probe would
+CI probes the unprivileged runner first. If Ubuntu's AppArmor/userns rules
+reject namespace creation, the probe returns a distinct `UNSUPPORTED`
+status (77), and the job records that the **normal-user profile is unusable
+on this runner**; it does not disable AppArmor or retry ANX without isolation.
+A separate **sudo/root CI-only probe** checks the actual kernel namespace
+and filesystem policy with sufficient setup permissions. A root CI success
+must not be represented as unprivileged Linux compatibility. Passing this probe would
 support this specific profile on that CI runner, but **does not certify** a
 complete sandbox (e.g. seccomp, inherited FDs, devices, TOCTOU, escapes,
 third-party audits, and other distros are not covered).

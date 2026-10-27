@@ -64,4 +64,5 @@ process. It does not sandbox it. Do not run untrusted APKs.
 
 - M8 real-kernel Bubblewrap isolation probe added in
   `tests/sandbox-kernel.py`: it checks network/mount namespaces and actual
-  file permissions. CI evidence must pass before calling the probe verified.
+  file permissions. Root CI isolation and unprivileged setup compatibility
+  are tracked separately. Do not infer normal-user support from root testing.
