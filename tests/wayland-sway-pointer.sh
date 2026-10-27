@@ -57,7 +57,7 @@ for i in $(seq 1 120); do
 done
 if [[ ! -S "$SWAYSOCK" ]]; then cat $LOG_DIR/sway-pointer-compositor.log >&2; exit 1; fi
 for i in $(seq 1 30); do
-    WAYLAND_DISPLAY="$(find "$RUNTIME" -maxdepth 1 -type s -name 'wayland-*' -printf '%f\n' | head -1)"
+    WAYLAND_DISPLAY="$(find "$RUNTIME" -maxdepth 1 -type s -name 'wayland-*' | sed 's|.*/||' | head -1)"
     [[ -n "$WAYLAND_DISPLAY" ]] && break
     sleep 0.2
 done
