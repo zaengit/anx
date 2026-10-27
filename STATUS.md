@@ -61,3 +61,7 @@ process. It does not sandbox it. Do not run untrusted APKs.
   `android.jar`, not the ANX Java stubs. ART loads that APK independently,
   including its actual Android SharedPreferences return type descriptor and
   a GTK button interaction. This is **not** a broad third-party APK matrix.
+
+- M8 real-kernel Bubblewrap isolation probe added in
+  `tests/sandbox-kernel.py`: it checks network/mount namespaces and actual
+  file permissions. CI evidence must pass before calling the probe verified.

@@ -79,3 +79,14 @@ jobs:
         run: bash tests/gui-timer-smoke.sh
       - name: Verify Wayland window under Weston headless
         run: bash tests/wayland-headless.sh
+
+  sandbox-kernel:
+    name: Real Bubblewrap kernel namespace isolation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Bubblewrap
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap
+      - name: Verify actual mount/network namespaces and file permissions
+        run: python3 tests/sandbox-kernel.py

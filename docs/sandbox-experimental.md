@@ -38,7 +38,23 @@ sandbox; never run untrusted APKs.
 `bash tests/sandbox-smoke.sh` checks a fake Bubblewrap backend's received
 arguments and proves that failed isolation never retries ART unsandboxed.
 
-**The CI tests are structural/mock tests, not evidence that the kernel
-namespaces work on a target distro.** Successful runtime kernel isolation,
+**The unit and fake-helper tests are structural/mock tests, not evidence
+that the kernel namespaces work on a target distro.** Successful runtime kernel isolation,
 network denial, host-file denial, resource limits, Wayland permissions and
 security audit are separate release gates.
+
+## Real kernel isolation verification (development)
+
+`python3 tests/sandbox-kernel.py` invokes an **actual Bubblewrap child**,
+rather than a fake helper. On a Linux host permitting user namespaces it
+checks that mount and network namespace identifiers differ from the host,
+the host's home-only marker is inaccessible, inherited environment is
+cleared, the APK and framework mounts are read-only, outbound TCP cannot
+connect, and only explicitly writable ANX data directories persist writes.
+
+A CI job runs this on Ubuntu 24.04 with `bubblewrap` installed. If Ubuntu's
+AppArmor/userns rules prevent Bubblewrap execution the job **fails**; it does
+not disable host protections or substitute a mock. Passing this probe would
+support this specific profile on that CI runner, but **does not certify** a
+complete sandbox (e.g. seccomp, inherited FDs, devices, TOCTOU, escapes,
+third-party audits, and other distros are not covered).
