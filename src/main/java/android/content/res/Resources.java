@@ -1,5 +1,7 @@
 package android.content.res;
 
+import java.util.Locale;
+
 /** Limited default-config Android compiled resource lookup. */
 public final class Resources {
     private final AssetManager assets;
@@ -15,6 +17,23 @@ public final class Resources {
             throw new NotFoundException("String resource not found: 0x"
                     + Integer.toHexString(id));
         return value;
+    }
+    public String getString(int id, Object... args) {
+        return String.format(Locale.getDefault(), getString(id), args);
+    }
+    public int getInteger(int id) {
+        Integer value = CompiledValues.findInteger(assets.apkPathForHost(), id);
+        if (value == null)
+            throw new NotFoundException("Integer resource not found: 0x"
+                    + Integer.toHexString(id));
+        return value.intValue();
+    }
+    public boolean getBoolean(int id) {
+        Boolean value = CompiledValues.findBoolean(assets.apkPathForHost(), id);
+        if (value == null)
+            throw new NotFoundException("Boolean resource not found: 0x"
+                    + Integer.toHexString(id));
+        return value.booleanValue();
     }
     public int getColor(int id) {
         Integer value = CompiledValues.findColor(assets.apkPathForHost(), id);

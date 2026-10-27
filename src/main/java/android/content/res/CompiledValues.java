@@ -21,6 +21,9 @@ final class CompiledValues {
     private static final int PACKAGE = 0x0200;
     private static final int TYPE = 0x0201;
     private static final int TYPE_STRING = 0x03;
+    private static final int TYPE_INT_DEC = 0x10;
+    private static final int TYPE_INT_HEX = 0x11;
+    private static final int TYPE_INT_BOOLEAN = 0x12;
     private static final int TYPE_REFERENCE = 0x01;
     private static final int MAX_REFERENCE_DEPTH = 16;
     private static final int NO_ENTRY = -1;
@@ -43,6 +46,16 @@ final class CompiledValues {
     static String findString(String apkPath, int id) {
         Value v = findResolved(apkPath, id);
         return v == null || v.type != TYPE_STRING ? null : get(v.strings, v.data);
+    }
+    static Integer findInteger(String apkPath, int id) {
+        Value v = findResolved(apkPath, id);
+        return v != null && (v.type == TYPE_INT_DEC || v.type == TYPE_INT_HEX)
+                ? Integer.valueOf(v.data) : null;
+    }
+    static Boolean findBoolean(String apkPath, int id) {
+        Value v = findResolved(apkPath, id);
+        return v != null && v.type == TYPE_INT_BOOLEAN
+                ? Boolean.valueOf(v.data != 0) : null;
     }
     static Integer findColor(String apkPath, int id) {
         Value v = findResolved(apkPath, id);
