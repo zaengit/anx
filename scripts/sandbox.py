@@ -53,6 +53,14 @@ def wrap_console_art(
     package_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     if not package_dir.is_dir() or package_dir.resolve().parent != app_data_root.resolve():
         raise SandboxError("per-package data directory escaped its root")
+    # ART's runtime cache is also a per-package writable mount. Sharing a
+    # global ANDROID_DATA directory would expose other apps' runtime caches.
+    runtime_dir = android_data / package
+    if runtime_dir.is_symlink():
+        raise SandboxError("per-package ART cache directory cannot be a symlink")
+    runtime_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if not runtime_dir.is_dir() or runtime_dir.resolve().parent != android_data.resolve():
+        raise SandboxError("per-package ART cache directory escaped its root")
     if native_directory and not native_directory.is_dir():
         raise SandboxError("sandbox native library directory is missing")
     if not framework_dex.is_file() or not apk_path.is_file():
@@ -81,7 +89,7 @@ def wrap_console_art(
         "--proc", "/proc", "--dev", "/dev",
         "--ro-bind", str(framework_dex.resolve()), "/anx/framework.dex",
         "--ro-bind", str(apk_path.resolve()), "/anx/app.apk",
-        "--bind", str(android_data.resolve()), "/anx/data",
+        "--bind", str(runtime_dir.resolve()), "/anx/data",
         "--bind", str(package_dir.resolve()), "/anx/apps/" + package,
     ]
     classpath = "/anx/framework.dex:/anx/app.apk"

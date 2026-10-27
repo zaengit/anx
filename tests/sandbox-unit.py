@@ -47,6 +47,8 @@ class SandboxCommandTest(unittest.TestCase):
         self.assertEqual(argv.count("--bind"), 2)
         self.assertIn("/anx/apps/org.anx.fixture", argv)
         self.assertIn("/anx/data", argv)
+        self.assertIn(str((self.data / "org.anx.fixture").resolve()), argv)
+        self.assertNotIn(str(self.data.resolve()), argv)
         self.assertEqual(argv[-5:], ["org.anx.launcher.Main",
                                      "org.anx.fixture.Activity",
                                      "org.anx.fixture", "-", "/anx/app.apk"])
@@ -66,6 +68,19 @@ class SandboxCommandTest(unittest.TestCase):
         argv = self.command()
         self.assertNotIn(str(sibling.resolve()), argv)
         self.assertIn(str((self.apps / "org.anx.fixture").resolve()), argv)
+
+    def test_does_not_mount_sibling_art_caches(self):
+        sibling = self.data / "org.other"
+        sibling.mkdir()
+        (sibling / "cache.bin").write_bytes(b"secret")
+        argv = self.command()
+        self.assertIn(str((self.data / "org.anx.fixture").resolve()), argv)
+        self.assertNotIn(str(sibling.resolve()), argv)
+
+    def test_art_cache_symlink_rejected(self):
+        (self.data / "org.anx.fixture").symlink_to(self.native, target_is_directory=True)
+        with self.assertRaisesRegex(SandboxError, "ART cache directory cannot be a symlink"):
+            self.command()
 
     def test_invalid_package_rejected(self):
         with self.assertRaisesRegex(SandboxError, "invalid package identifier"):
