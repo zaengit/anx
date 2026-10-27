@@ -3,4 +3,7 @@
     <string name="screen_title">External APK from Android SDK</string>
     <string name="clicked_message">External button clicked</string>
     <string name="utf8_probe">Selamat datang di ANX — ✓</string>
+    <item type="string" name="screen_title_alias">@string/screen_title</item>
+    <item type="string" name="title_alias_chain">@string/screen_title_alias</item>
+    <item type="string" name="clicked_alias">@string/clicked_message</item>
 </resources>

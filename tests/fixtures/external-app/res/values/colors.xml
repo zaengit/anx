@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="accent">#ff336699</color>
+    <item type="color" name="accent_alias">@color/accent</item>
 </resources>

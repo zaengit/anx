@@ -3,6 +3,8 @@ package android.content.res;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashSet;
+import java.util.Set;
 import java.nio.charset.StandardCharsets;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -19,6 +21,8 @@ final class CompiledValues {
     private static final int PACKAGE = 0x0200;
     private static final int TYPE = 0x0201;
     private static final int TYPE_STRING = 0x03;
+    private static final int TYPE_REFERENCE = 0x01;
+    private static final int MAX_REFERENCE_DEPTH = 16;
     private static final int NO_ENTRY = -1;
 
     private final byte[] bytes;
@@ -37,7 +41,7 @@ final class CompiledValues {
     }
 
     static String findString(String apkPath, int id) {
-        Value v = findRaw(apkPath, id);
+        Value v = findResolved(apkPath, id);
         return v == null || v.type != TYPE_STRING ? null : get(v.strings, v.data);
     }
     static Integer findColor(String apkPath, int id) {
@@ -57,7 +61,7 @@ final class CompiledValues {
         return Float.valueOf((v.data & 0xffffff00) * radixMultipliers[radix]);
     }
 
-    private static Value findRaw(String apkPath, int id) {
+    private static Value findResolved(String apkPath, int id) {
         if (apkPath == null || id == 0) return null;
         try (ZipFile zip = new ZipFile(apkPath)) {
             ZipEntry entry = zip.getEntry("resources.arsc");
@@ -74,7 +78,22 @@ final class CompiledValues {
                     buffer.write(chunk, 0, read);
                 }
             }
-            return new CompiledValues(buffer.toByteArray()).lookup(id);
+            CompiledValues table = new CompiledValues(buffer.toByteArray());
+            int current = id;
+            int packageId = id >>> 24;
+            Set<Integer> visited = new HashSet<Integer>();
+            for (int depth = 0; depth < MAX_REFERENCE_DEPTH; depth++) {
+                if (!visited.add(Integer.valueOf(current)))
+                    throw invalid("cyclic resource reference");
+                Value value = table.lookup(current);
+                if (value == null || value.type != TYPE_REFERENCE) return value;
+                if (value.data == 0) return null;
+                // Only same-package references. Framework/split/overlay lookups
+                // need a complete Android resource manager, not this parser.
+                if ((value.data >>> 24) != packageId) return null;
+                current = value.data;
+            }
+            throw invalid("resource reference depth exceeds safety limit");
         } catch (IOException ex) {
             throw invalid("Cannot read compiled resources: " + ex);
         }
