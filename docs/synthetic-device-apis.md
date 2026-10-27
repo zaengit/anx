@@ -12,8 +12,10 @@ hardware ID, account identifier, or private host configuration.
 The in-memory `android.content.ClipboardManager`, legacy
 `android.text.ClipboardManager`, `ClipData` and
 `View.OnLongClickListener` APIs support local JVM compatibility only.
-There is **no Wayland pointer long-press dispatcher or shared desktop
-clipboard**. `Toast.show()` writes a console diagnostic, **not** a native
+GTK4 attaches a long-press controller to the primary TextView and sends
+its event into the ART main thread. CI emits a **test-only synthetic GTK
+gesture signal**, rather than compositor-injected pointer input. There is
+**no shared desktop clipboard**. `Toast.show()` writes a console diagnostic, **not** a native
 notification. Unsupported `Context.getSystemService` names return null.
 Any app depending on true Android device identity or system services may
 fail or behave differently.

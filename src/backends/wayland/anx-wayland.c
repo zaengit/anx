@@ -9,8 +9,10 @@ typedef struct {
     GtkWidget *label;
     GtkWidget *window;
     GtkWidget *button;
+    GtkGesture *long_press_gesture;
     gboolean test_autoclick;
     gboolean test_autoclose_text_only;
+    gboolean test_longpress_text_only;
     gboolean test_close_on_update;
     const char *title;
     const char *initial_label;
@@ -28,6 +30,21 @@ static void announce(HostWindow *state, const char *event) {
 static void on_button_clicked(GtkButton *button, gpointer user_data) {
     (void)button;
     announce((HostWindow *)user_data, "CLICK");
+}
+static gboolean close_text_for_test(gpointer user_data);
+static void on_label_long_pressed(GtkGestureLongPress *gesture, gdouble x,
+                                  gdouble y, gpointer user_data) {
+    (void)gesture; (void)x; (void)y;
+    announce((HostWindow *)user_data, "LONG_CLICK");
+}
+static gboolean longpress_for_test(gpointer user_data) {
+    HostWindow *state = user_data;
+    if (!state->closing && state->button == NULL && state->long_press_gesture != NULL) {
+        /* Synthetic GTK gesture signal: not a pointer/compositor input test. */
+        g_signal_emit_by_name(state->long_press_gesture, "pressed", 12.0, 12.0);
+        g_timeout_add(350, close_text_for_test, state);
+    }
+    return G_SOURCE_REMOVE;
 }
 static gboolean on_window_close(GtkWindow *window, gpointer user_data) {
     (void)window;
@@ -125,6 +142,10 @@ static void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_set_margin_start(box, 24);
     gtk_widget_set_margin_end(box, 24);
     state->label = gtk_label_new(state->initial_label);
+    GtkGesture *longpress = gtk_gesture_long_press_new();
+    state->long_press_gesture = longpress;
+    g_signal_connect(longpress, "pressed", G_CALLBACK(on_label_long_pressed), state);
+    gtk_widget_add_controller(state->label, GTK_EVENT_CONTROLLER(longpress));
     gtk_label_set_wrap(GTK_LABEL(state->label), TRUE);
     gtk_label_set_xalign(GTK_LABEL(state->label), 0.0f);
     gtk_box_append(GTK_BOX(box), state->label);
@@ -145,8 +166,11 @@ static void on_activate(GtkApplication *app, gpointer user_data) {
     /* CI-only: exercise a real, realized GTK button signal under Weston. */
     if (state->test_autoclick && state->button != NULL)
         g_timeout_add(300, click_for_test, state);
-    if (state->test_autoclose_text_only && state->button == NULL)
+    if (state->test_autoclose_text_only && !state->test_longpress_text_only
+            && state->button == NULL)
         g_timeout_add(300, close_text_for_test, state);
+    if (state->test_longpress_text_only && state->button == NULL)
+        g_timeout_add(300, longpress_for_test, state);
 }
 int main(int argc, char **argv) {
     if (argc != 4) {
@@ -162,6 +186,7 @@ int main(int argc, char **argv) {
     state.input = g_string_new(NULL);
     state.test_autoclick = g_strcmp0(g_getenv("ANX_GUI_TEST_AUTOCLICK"), "1") == 0;
     state.test_autoclose_text_only = g_strcmp0(g_getenv("ANX_GUI_TEST_AUTOCLOSE_TEXT_ONLY"), "1") == 0;
+    state.test_longpress_text_only = g_strcmp0(g_getenv("ANX_GUI_TEST_LONGPRESS_TEXT_ONLY"), "1") == 0;
     state.test_close_on_update = state.test_autoclick
         || g_strcmp0(g_getenv("ANX_GUI_TEST_CLOSE_ON_UPDATE"), "1") == 0;
     state.app = gtk_application_new("org.anx.wayland", G_APPLICATION_NON_UNIQUE);

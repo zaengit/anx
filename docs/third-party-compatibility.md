@@ -63,14 +63,18 @@ ANX is still not safe for running untrusted Android apps.
   are deliberately **synthetic**, visibly containing `anx-host` / `ANX-`;
   they are not true Android hardware or system information.
 - The Activity installs `View.OnLongClickListener` and uses clipboard
-  and Toast APIs in its handler. The ABI subset is present and
-  JVM long-press logic is exercised separately, but **a real GTK
-  long-press/clipboard or toast UI is not implemented or verified**.
+  and Toast APIs in its handler. A GTK4 long-press gesture controller now
+  emits an event consumed by the ART main thread, and the host-ART CI uses a
+  **synthetic GTK gesture signal** to verify the original long-click handler
+  executes, updates the in-process clipboard and emits a console-only Toast.
+  **No actual physical long-press/compositor injection or host OS clipboard
+  integration is verified or provided.**
 
 | Test | Coverage |
 | --- | --- |
 | Second independent Java Activity compiled against `android.jar` | Build and APK inspect |
 | SDK real method signatures for Build, Settings, View, Clipboard, Toast | JVM ABI subset + ART console launch |
 | Programmatically updated TextView with synthetic identity | Host ART console + GTK4/Weston text-only verification |
-| GTK native long-press and system clipboard | Not supported |
+| GTK long-press gesture callback | Synthetic GTK signal verified in ART/Weston; physical input not tested |
+| System clipboard / graphical toast | Not supported; local data and console output only |
 | Manifest from upstream build system | Build-only projection; source file preserved |
