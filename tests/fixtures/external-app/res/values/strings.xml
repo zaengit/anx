@@ -6,4 +6,6 @@
     <item type="string" name="screen_title_alias">@string/screen_title</item>
     <item type="string" name="title_alias_chain">@string/screen_title_alias</item>
     <item type="string" name="clicked_alias">@string/clicked_message</item>
+    <string name="welcome_format">Welcome, %1$s! Count %2$d</string>
+    <item type="string" name="welcome_format_alias">@string/welcome_format</item>
 </resources>

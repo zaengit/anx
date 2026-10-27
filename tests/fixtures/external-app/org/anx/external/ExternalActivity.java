@@ -24,6 +24,15 @@ public final class ExternalActivity extends Activity {
             throw new AssertionError("Compiled dimension resource mismatch");
         System.out.println("[external] color and dimension resources ok");
         System.out.println("[external] resource references resolved");
+        if (!getResources().getBoolean(R.bool.enabled_alias)
+                || getResources().getBoolean(R.bool.disabled)
+                || getResources().getInteger(R.integer.max_retries_alias) != 42
+                || getResources().getInteger(R.integer.negative_probe) != -7)
+            throw new AssertionError("Boolean or integer resource mismatch");
+        if (!"Welcome, ANX! Count 3".equals(
+                getString(R.string.welcome_format_alias, "ANX", 3)))
+            throw new AssertionError("Formatted string resource mismatch");
+        System.out.println("[external] boolean integer and formatted strings ok");
         Button button = new Button(this);
         button.setText("Update");
         button.setOnClickListener(v -> {

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer name="max_retries">42</integer>
+    <integer name="negative_probe">-7</integer>
+    <item type="integer" name="max_retries_alias">@integer/max_retries</item>
+</resources>

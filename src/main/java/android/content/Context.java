@@ -21,6 +21,9 @@ public abstract class Context {
     public final AssetManager getAssets() { return assets; }
     public final Resources getResources() { return new Resources(assets); }
     public final String getString(int id) { return getResources().getString(id); }
+    public final String getString(int id, Object... args) {
+        return getResources().getString(id, args);
+    }
     public final CharSequence getText(int id) { return getResources().getText(id); }
     public final int getColor(int id) { return getResources().getColor(id); }
     public final PackageManager getPackageManager() { return new PackageManager(this); }
