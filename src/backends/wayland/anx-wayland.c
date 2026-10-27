@@ -10,6 +10,7 @@ typedef struct {
     GtkWidget *window;
     GtkWidget *button;
     gboolean test_autoclick;
+    gboolean test_autoclose_text_only;
     gboolean test_close_on_update;
     const char *title;
     const char *initial_label;
@@ -42,6 +43,17 @@ static gboolean on_pulse(gpointer user_data) {
     if (state->closing) return G_SOURCE_REMOVE;
     announce(state, "PULSE");
     return G_SOURCE_CONTINUE;
+}
+static gboolean close_text_for_test(gpointer user_data) {
+    HostWindow *state = user_data;
+    if (state->closing || state->button != NULL) return G_SOURCE_REMOVE;
+    if (g_strcmp0(gtk_label_get_text(GTK_LABEL(state->label)), state->initial_label) != 0) {
+        announce(state, "ERROR_LABEL_MISMATCH");
+        return G_SOURCE_REMOVE;
+    }
+    announce(state, "TEXT_VERIFIED");
+    gtk_window_close(GTK_WINDOW(state->window));
+    return G_SOURCE_REMOVE;
 }
 static gboolean click_for_test(gpointer user_data) {
     HostWindow *state = user_data;
@@ -133,6 +145,8 @@ static void on_activate(GtkApplication *app, gpointer user_data) {
     /* CI-only: exercise a real, realized GTK button signal under Weston. */
     if (state->test_autoclick && state->button != NULL)
         g_timeout_add(300, click_for_test, state);
+    if (state->test_autoclose_text_only && state->button == NULL)
+        g_timeout_add(300, close_text_for_test, state);
 }
 int main(int argc, char **argv) {
     if (argc != 4) {
@@ -147,6 +161,7 @@ int main(int argc, char **argv) {
     state.button_label = argv[3];
     state.input = g_string_new(NULL);
     state.test_autoclick = g_strcmp0(g_getenv("ANX_GUI_TEST_AUTOCLICK"), "1") == 0;
+    state.test_autoclose_text_only = g_strcmp0(g_getenv("ANX_GUI_TEST_AUTOCLOSE_TEXT_ONLY"), "1") == 0;
     state.test_close_on_update = state.test_autoclick
         || g_strcmp0(g_getenv("ANX_GUI_TEST_CLOSE_ON_UPDATE"), "1") == 0;
     state.app = gtk_application_new("org.anx.wayland", G_APPLICATION_NON_UNIQUE);

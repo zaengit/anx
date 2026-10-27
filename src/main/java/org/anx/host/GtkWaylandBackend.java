@@ -59,6 +59,7 @@ public final class GtkWaylandBackend implements WindowBackend {
             boolean closed = false;
             boolean clicked = false;
             boolean updated = false;
+            boolean verifiedTextOnly = false;
             String lastSent = content.label.getText().toString();
             String line;
             while ((line = input.readLine()) != null) {
@@ -93,6 +94,11 @@ public final class GtkWaylandBackend implements WindowBackend {
                         throw new IOException("Unexpected repaint acknowledgement");
                     updated = true;
                     System.out.println("[anx-wayland] label updated");
+                } else if ("TEXT_VERIFIED".equals(line)) {
+                    if (!ready || content.button != null)
+                        throw new IOException("Unexpected TextView verification");
+                    verifiedTextOnly = true;
+                    System.out.println("[anx-wayland] text-only GTK label verified");
                 } else if ("CLOSE".equals(line)) {
                     closed = true;
                     break;
@@ -104,6 +110,9 @@ public final class GtkWaylandBackend implements WindowBackend {
                 throw new IOException("Wayland integration test did not click and repaint");
             if ("1".equals(System.getenv("ANX_GUI_TEST_CLOSE_ON_UPDATE")) && !updated)
                 throw new IOException("Wayland test did not repaint");
+            if ("1".equals(System.getenv("ANX_GUI_TEST_AUTOCLOSE_TEXT_ONLY"))
+                    && !verifiedTextOnly)
+                throw new IOException("Wayland text-only label was not verified");
             System.out.println("[anx-wayland] window closed");
         } catch (IOException error) {
             throw new IllegalStateException("Wayland window unavailable: " + error.getMessage(), error);
