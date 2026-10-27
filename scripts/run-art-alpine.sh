@@ -140,7 +140,8 @@ echo "[art-container] ART source commit: a1edfc40e8cea3644d80e4e776d3fa7fc397a1c
         ANX_VIRTUAL_POINTER_GENERATED_DIR=/anx/build/art-smoke/pointer-generated \
             ANX_VIRTUAL_POINTER_OUTPUT_DIR=/anx/build/art-smoke/native \
             bash scripts/build-virtual-pointer-test.sh
-        ANX_POINTER_ART_CMD="$art_cmd" \
+        ANX_SWAY_BINARY=/usr/local/bin/anx-ci-sway \
+            ANX_POINTER_ART_CMD="$art_cmd" \
             ANX_WAYLAND_BINARY=/anx/build/art-smoke/native/anx-wayland \
             ANX_VIRTUAL_POINTER_BINARY=/anx/build/art-smoke/native/anx-virtual-pointer \
             ANX_POINTER_LOG_DIR=/anx/build/art-smoke \

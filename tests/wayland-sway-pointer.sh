@@ -3,7 +3,11 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-for binary in sway swaymsg jq dbus-run-session; do command -v "$binary" >/dev/null || exit 1; done
+for binary in swaymsg jq dbus-run-session; do command -v "$binary" >/dev/null || exit 1; done
+SWAY_BINARY="${ANX_SWAY_BINARY:-sway}"
+command -v "$SWAY_BINARY" >/dev/null || {
+    echo "[FAIL] Missing Sway binary: $SWAY_BINARY" >&2; exit 1;
+}
 # Mode 1: JVM fixture on Ubuntu CI. Mode 2: the same real APK on pinned ART
 # inside the Alpine host ART reference image. Both use compositor input.
 NATIVE_BIN="${ANX_WAYLAND_BINARY:-$ROOT/build/native/anx-wayland}"
@@ -43,7 +47,7 @@ export WLR_BACKENDS=headless WLR_RENDERER=pixman
 export WLR_HEADLESS_OUTPUTS=1 WLR_LIBINPUT_NO_DEVICES=1
 export GDK_BACKEND=wayland GSK_RENDERER=cairo
 unset DISPLAY WAYLAND_DISPLAY
-dbus-run-session -- sway -c "$RUNTIME/sway.conf" --unsupported-gpu \
+dbus-run-session -- "$SWAY_BINARY" -c "$RUNTIME/sway.conf" --unsupported-gpu \
     > "$LOG_DIR/sway-pointer-compositor.log" 2>&1 &
 SWAY_PID=$!
 for i in $(seq 1 120); do

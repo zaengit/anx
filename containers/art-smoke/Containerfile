@@ -19,6 +19,12 @@ RUN apk add --no-cache \
       gtk4.0-dev pkgconf weston weston-backend-headless weston-shell-desktop font-dejavu \
       sway jq dbus wayland-dev linux-headers
 
+# The distribution sway ELF can carry file capabilities (e.g. cap_sys_nice).
+# Executing that file can fail with EPERM under Docker's capability bounding
+# set. A private, unprivileged CI copy strips xattrs/file capabilities without
+# relaxing Docker security or altering the original system binary.
+RUN install -m 0755 /usr/bin/sway /usr/local/bin/anx-ci-sway
+
 WORKDIR /tmp
 RUN wget -O art_standalone.tar.gz \
       "https://gitlab.com/android_translation_layer/art_standalone/-/archive/${ART_SOURCE_COMMIT}/art_standalone-${ART_SOURCE_COMMIT}.tar.gz" \
