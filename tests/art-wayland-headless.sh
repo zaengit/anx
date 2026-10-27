@@ -120,3 +120,29 @@ for expected in \
 done
 echo '[PASS] SDK-compiled external APK runs on host ART and native GTK Wayland.'
 
+# Genuine independent Apache-2.0 app, unmodified from upstream.
+unset ANX_GUI_TEST_AUTOCLICK
+export ANX_GUI_TEST_AUTOCLOSE_TEXT_ONLY=1
+if ! timeout 40 python3 scripts/anx.py run build/chiuki-third-party.apk \
+    --unsafe-host-execution --art "$ART_CMD" --backend wayland \
+    --wayland-binary "$NATIVE_BIN" \
+    --framework-dex build/framework/classes.dex \
+    --android-data "$RUNTIME/android-data" \
+    > "$LOG_DIR/third-party-art-wayland.log" 2>&1; then
+    cat "$LOG_DIR/third-party-art-wayland.log" >&2
+    echo '[FAIL] Independent Apache-2.0 APK on ART + GTK Wayland' >&2
+    exit 1
+fi
+for expected in \
+    '[anx-wayland] window ready' \
+    '[anx-wayland] text-only GTK label verified' \
+    '[anx-wayland] window closed' \
+    '[anx] onDestroy'; do
+    grep -Fq "$expected" "$LOG_DIR/third-party-art-wayland.log" || {
+        cat "$LOG_DIR/third-party-art-wayland.log" >&2
+        echo "[FAIL] Third-party Wayland log absent: $expected" >&2
+        exit 1
+    }
+done
+echo '[PASS] Genuine independently authored APK XML TextView rendered in GTK Wayland.'
+

@@ -1,6 +1,7 @@
 package android.app;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.CompiledLayout;
 import android.os.Bundle;
 import android.view.View;
 /** Lifecycle subset executed by ANX's Instrumentation on the prepared main thread. */
@@ -17,6 +18,10 @@ public class Activity extends Context {
     public final Intent getIntent() { return intent; }
     public final void attachHostIntent(Intent value) { intent = value; }
     public final void setContentView(View view) { contentView = view; }
+    /** Default-config binary XML layout subset; not a general LayoutInflater. */
+    public void setContentView(int layoutId) {
+        contentView = CompiledLayout.inflate(this, layoutId);
+    }
     public final View getContentViewForHost() { return contentView; }
     public final void performCreate(Bundle b) { onCreate(b); }
     public final void performStart() { onStart(); }
