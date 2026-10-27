@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="screen_title">External APK from Android SDK</string>
+    <string name="clicked_message">External button clicked</string>
+    <string name="utf8_probe">Selamat datang di ANX — ✓</string>
+</resources>

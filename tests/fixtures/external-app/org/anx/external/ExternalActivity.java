@@ -11,11 +11,14 @@ public final class ExternalActivity extends Activity {
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         final TextView label = new TextView(this);
-        label.setText("External APK from Android SDK");
+        label.setText(R.string.screen_title);
+        if (!"Selamat datang di ANX — ✓".equals(getString(R.string.utf8_probe)))
+            throw new AssertionError("UTF-8 compiled string resource failed");
+        System.out.println("[external] resources.arsc lookup ok");
         Button button = new Button(this);
         button.setText("Update");
         button.setOnClickListener(v -> {
-            label.setText("External button clicked");
+            label.setText(getString(R.string.clicked_message));
             System.out.println("[external] click updated label");
         });
         content.addView(label);

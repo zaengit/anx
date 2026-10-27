@@ -2,6 +2,12 @@
 
 ANX implements the following deliberately limited APIs:
 
+- Compiled default-configuration `R.string` lookup from APK
+  `resources.arsc`: `Context.getString(id)`,
+  `Resources.getString(id)` and `TextView.setText(R.string.*)`.
+  See [compiled-string-resources.md](compiled-string-resources.md).
+
+
 - `android.util.Log`: v/d/i/w/e/wtf, Throwable variants, printing and stack
   traces through the Linux process streams. No Android logd, logcat buffers,
   per-tag filtering or persistent system log retention.

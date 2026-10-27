@@ -9,6 +9,7 @@ import java.util.zip.ZipFile;
 public final class AssetManager {
     private final String apkPath;
     public AssetManager(String apkPath) { this.apkPath = apkPath; }
+    String apkPathForHost() { return apkPath; }
     public InputStream open(String fileName) throws IOException {
         if (fileName == null || fileName.isEmpty() || fileName.startsWith("/")
                 || fileName.indexOf('\\') >= 0 || fileName.indexOf('\u0000') >= 0) {
