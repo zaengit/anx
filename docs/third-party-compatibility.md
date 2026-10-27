@@ -43,3 +43,34 @@ remain absent.
 The GTK integration verification uses a test-only timed auto-close and
 checks the realized GTK label. It does not simulate physical pointer input.
 ANX is still not safe for running untrusted Android apps.
+
+## Second independent app: Appliberated/HelloWorldSelfAware (MIT)
+
+- Upstream: https://github.com/Appliberated/HelloWorldSelfAware
+- Pinned commit: `dd3911500ae40507f2400561d15e49f5c0c8f01c`
+- License: MIT, copied verbatim to
+  `tests/fixtures/third-party/appliberated/LICENSE`.
+- Original `MainActivity.java`, `AndroidInfo.java`, `Utils.java`,
+  XML layout and selected values resources are copied **unchanged**.
+- Build with `bash scripts/build-self-aware-apk.sh`. The SDK-only
+  packaging projection **modifies the build copy of AndroidManifest.xml** to
+  add the Gradle-supplied package namespace and remove icon/backup references
+  unavailable without upstream binary assets. The original upstream manifest
+  remains untouched, and this is **not byte-identical to an upstream APK**.
+- Its `MainActivity` calls `Settings.Secure.getString(ANDROID_ID)`, reads
+  `Build.VERSION`, formats three substitutions, and writes the result into a
+  TextView obtained through `findViewById`. On ANX the Android ID and version
+  are deliberately **synthetic**, visibly containing `anx-host` / `ANX-`;
+  they are not true Android hardware or system information.
+- The Activity installs `View.OnLongClickListener` and uses clipboard
+  and Toast APIs in its handler. The ABI subset is present and
+  JVM long-press logic is exercised separately, but **a real GTK
+  long-press/clipboard or toast UI is not implemented or verified**.
+
+| Test | Coverage |
+| --- | --- |
+| Second independent Java Activity compiled against `android.jar` | Build and APK inspect |
+| SDK real method signatures for Build, Settings, View, Clipboard, Toast | JVM ABI subset + ART console launch |
+| Programmatically updated TextView with synthetic identity | Host ART console + GTK4/Weston text-only verification |
+| GTK native long-press and system clipboard | Not supported |
+| Manifest from upstream build system | Build-only projection; source file preserved |

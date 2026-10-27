@@ -119,6 +119,20 @@ echo "[art-container] ART source commit: a1edfc40e8cea3644d80e4e776d3fa7fc397a1c
         grep -Fq "[linux-console-backend] Button: Update nested" /anx/build/art-smoke/nested-apk.log
         grep -Fq "[anx] onDestroy" /anx/build/art-smoke/nested-apk.log
         echo "[PASS] SDK APK nested XML view IDs, text and button on host ART."
+        if ! python3 scripts/anx.py run build/self-aware-third-party.apk \
+            --unsafe-host-execution --art "$art_cmd" --backend console \
+            --framework-dex build/framework/classes.dex \
+            --android-data /tmp/anx-self-aware-data \
+            > /anx/build/art-smoke/self-aware-third-party.log 2>&1; then
+            cat /anx/build/art-smoke/self-aware-third-party.log >&2
+            exit 1
+        fi
+        grep -Fq "[linux-console-backend] TextView: hello world" \
+            /anx/build/art-smoke/self-aware-third-party.log
+        grep -Fq "anx-host-not-an-android-device" /anx/build/art-smoke/self-aware-third-party.log
+        grep -Fq "ANX-host-compatibility" /anx/build/art-smoke/self-aware-third-party.log
+        grep -Fq "[anx] onDestroy" /anx/build/art-smoke/self-aware-third-party.log
+        echo "[PASS] Second independently authored MIT APK runs with synthetic device metadata on host ART."
         ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-gui-protocol.sh
         ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-jni-smoke.sh
         ANX_NATIVE_OUTPUT_DIR=/anx/build/art-smoke/native bash scripts/build-wayland.sh
