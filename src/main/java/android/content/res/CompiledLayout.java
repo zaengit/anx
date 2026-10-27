@@ -3,6 +3,11 @@ package android.content.res;
 import android.content.Context;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.view.ViewGroup;
+import java.util.ArrayList;
+import java.util.List;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,8 +16,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Fail-closed Android binary XML inflater subset: only one root TextView and
- * an optional literal or R.string-backed android:text attribute.
+ * Bounded Android binary XML inflater subset: single TextView or vertical
+ * LinearLayout with nested vertical LinearLayouts, TextViews and Buttons.
+ * No Android measurement, styling, framework themes or general layout support.
  */
 public final class CompiledLayout {
     private static final int XML = 0x0003, STRING_POOL = 0x0001;
@@ -125,13 +131,23 @@ public final class CompiledLayout {
         if (index < 0 || index >= values.length) throw unsupported("invalid string index");
         return values[index];
     }
+    private static final int TYPE_INT_DEC = 0x10;
+    private static final int MAX_NODES = 16, MAX_DEPTH = 4;
+
+    private static final class Node {
+        final String tag;
+        final View view;
+        Node(String tag, View view) { this.tag = tag; this.view = view; }
+    }
+
     private View parse(Context context) {
         if (data.length < 8 || u16(0) != XML) throw unsupported("not binary XML");
         int[] root = chunk(0, data.length);
         if (root[1] != data.length) throw unsupported("incorrect XML file length");
-        int off = root[0], depth = 0;
+        int off = root[0], seen = 0;
         String[] strings = null;
-        TextView view = null;
+        View rootView = null;
+        List<Node> stack = new ArrayList<Node>();
         while (off < root[1]) {
             int[] c = chunk(off, root[1]);
             int kind = u16(off);
@@ -139,44 +155,68 @@ public final class CompiledLayout {
                 if (strings != null) throw unsupported("duplicate string pool");
                 strings = pool(off, root[1]);
             } else if (kind == START) {
-                if (strings == null || c[0] < 16 || c[1] < c[0]+20)
+                if (strings == null || c[0] < 16 || c[1] < c[0] + 20)
                     throw unsupported("bad start element");
-                if (depth != 0 || view != null)
-                    throw unsupported("nested/multiple views not supported");
+                if (++seen > MAX_NODES || stack.size() >= MAX_DEPTH)
+                    throw unsupported("view count/depth exceeds limit");
                 int ext = off + c[0];
-                String tag = string(strings, i32(ext+4));
-                if (!"TextView".equals(tag) && !"android.widget.TextView".equals(tag))
-                    throw unsupported("unsupported root view: " + tag);
-                view = new TextView(context);
-                int attrOff = u16(ext+8), attrSize = u16(ext+10);
-                int count = u16(ext+12);
-                long start = (long)ext + attrOff;
+                String tag = string(strings, i32(ext + 4));
+                View view;
+                if ("TextView".equals(tag) || "android.widget.TextView".equals(tag))
+                    view = new TextView(context);
+                else if ("Button".equals(tag) || "android.widget.Button".equals(tag))
+                    view = new Button(context);
+                else if ("LinearLayout".equals(tag) || "android.widget.LinearLayout".equals(tag))
+                    view = new LinearLayout(context);
+                else throw unsupported("unsupported view type: " + tag);
+                int attrOff = u16(ext + 8), attrSize = u16(ext + 10);
+                int count = u16(ext + 12);
+                long firstAttr = (long)ext + attrOff;
                 if (attrSize < 20 || count > 256) throw unsupported("attribute bounds");
-                require(start, (long)attrSize * count, off+c[1]);
-                for (int i=0; i<count; i++) {
-                    int p = (int)(start + (long)i * attrSize);
+                require(firstAttr, (long)attrSize * count, off + c[1]);
+                for (int a = 0; a < count; a++) {
+                    int p = (int)(firstAttr + (long)a * attrSize);
                     String ns = string(strings, i32(p));
-                    String name = string(strings, i32(p+4));
-                    if (!ANDROID_NS.equals(ns) || !"text".equals(name)) continue;
-                    if (u16(p+12) < 8) throw unsupported("invalid android:text value");
-                    int type = u8(p+15), value = i32(p+16);
-                    if (type == TYPE_REFERENCE) view.setText(context.getString(value));
-                    else if (type == TYPE_STRING) view.setText(string(strings, value));
-                    else throw unsupported("unsupported android:text value type");
+                    String name = string(strings, i32(p + 4));
+                    if (!ANDROID_NS.equals(ns)) continue;
+                    if (u16(p + 12) < 8) throw unsupported("invalid Android attribute");
+                    int type = u8(p + 15), value = i32(p + 16);
+                    if ("id".equals(name)) {
+                        if (type != TYPE_REFERENCE || value == 0)
+                            throw unsupported("invalid android:id");
+                        view.setId(value);
+                    } else if ("text".equals(name) && view instanceof TextView) {
+                        TextView label = (TextView)view;
+                        if (type == TYPE_REFERENCE) label.setText(context.getString(value));
+                        else if (type == TYPE_STRING) label.setText(string(strings, value));
+                        else throw unsupported("unsupported android:text type");
+                    } else if ("orientation".equals(name) && view instanceof LinearLayout) {
+                        if (type != TYPE_INT_DEC || value != LinearLayout.VERTICAL)
+                            throw unsupported("only vertical LinearLayout supported");
+                        ((LinearLayout)view).setOrientation(value);
+                    }
                 }
-                depth++;
+                if (stack.isEmpty()) {
+                    if (rootView != null) throw unsupported("multiple XML roots");
+                    rootView = view;
+                } else {
+                    View parent = stack.get(stack.size()-1).view;
+                    if (!(parent instanceof LinearLayout))
+                        throw unsupported("nested child requires LinearLayout");
+                    ((LinearLayout)parent).addView(view);
+                }
+                stack.add(new Node(tag, view));
             } else if (kind == END) {
-                if (depth != 1 || c[0] < 16 || c[1] < c[0]+8 || strings == null)
-                    throw unsupported("unbalanced end element");
-                String tag = string(strings, i32(off+c[0]+4));
-                if (!"TextView".equals(tag) && !"android.widget.TextView".equals(tag))
-                    throw unsupported("mismatched end element");
-                depth--;
+                if (stack.isEmpty() || strings == null || c[0] < 16 || c[1] < c[0] + 8)
+                    throw unsupported("unbalanced end tag");
+                String tag = string(strings, i32(off + c[0] + 4));
+                Node node = stack.remove(stack.size()-1);
+                if (!node.tag.equals(tag)) throw unsupported("mismatched XML closing tag");
             }
             off += c[1];
         }
-        if (off != root[1] || strings == null || view == null || depth != 0)
+        if (off != root[1] || strings == null || rootView == null || !stack.isEmpty())
             throw unsupported("incomplete XML tree");
-        return view;
+        return rootView;
     }
 }

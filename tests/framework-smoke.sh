@@ -9,6 +9,7 @@ ANX_APP_DATA_HOME="$ROOT/build/storage-test" java -cp build/test-classes org.anx
 java -cp build/test-classes org.anx.tests.FrameworkLifecycleTest
 java -cp build/test-classes org.anx.tests.LoggingPackageTest
 java -cp build/test-classes org.anx.tests.ResourceReferenceSafetyTest
+java -cp build/test-classes org.anx.tests.ViewTreeLookupTest
 if java -cp build/test-classes org.anx.launcher.Main \
     org.anx.tests.ThrowingActivity org.anx.tests \
     org.anx.tests.ThrowingApplication > build/lifecycle-failure.out 2>&1; then

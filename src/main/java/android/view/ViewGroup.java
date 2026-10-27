@@ -13,6 +13,15 @@ public class ViewGroup extends View {
             throw new IllegalArgumentException("Views must share the same Context");
         children.add(child);
     }
+    @Override public <T extends View> T findViewById(int targetId) {
+        T self = super.findViewById(targetId);
+        if (self != null) return self;
+        for (View child : children) {
+            T found = child.findViewById(targetId);
+            if (found != null) return found;
+        }
+        return null;
+    }
     public int getChildCount() { return children.size(); }
     public View getChildAt(int index) { return children.get(index); }
     public List<View> getChildrenForHost() { return Collections.unmodifiableList(children); }

@@ -44,6 +44,7 @@ echo '[PASS] Untrusted APK launch is denied by default and explicit opt-in is te
 
 bash scripts/build-external-apk.sh
 bash scripts/build-chiuki-apk.sh
+bash scripts/build-nested-apk.sh
 bash scripts/build-multidex-fixture.sh
 bash scripts/build-jni-fixture.sh
 python3 scripts/anx.py inspect build/native-fixture.apk > build/native-fixture-inspect.out

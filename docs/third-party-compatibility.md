@@ -24,14 +24,18 @@ bash scripts/run-art-alpine.sh
 | Android-compiled XML layout | One root TextView, `android:text=@string/hello_world` |
 | Host ART console | `TextView: Hello world!`, Activity lifecycle cleanup |
 | Host ART GTK4 Wayland | Real headless Weston window, GTK label verified, clean close |
-| Nested LinearLayout and view attributes | Not supported by XML inflater |
+| Nested vertical LinearLayout, TextView, Button IDs | Supported in a separate SDK fixture; **not yet independently authored APK** |
 | Other third-party APKs | Not verified; needs independent matrix expansion |
 
-The binary XML inflater accepts only a **single root TextView** with literal
-or `R.string`-backed `android:text`. It caps layout reads at 1 MiB, string
-count at 8192, and XML attributes at 256. It deliberately rejects unknown
-view trees instead of silently showing incorrect UIs; no `findViewById`,
-style/theme, layout sizing, translations or density variants are implemented.
+The binary XML inflater now accepts a root TextView or a **vertical LinearLayout**
+with nested vertical layouts, TextView and Button nodes, each with optional
+`android:id` and literal or R.string-backed `android:text`. The SDK-only
+`tests/fixtures/nested-app` exercises `findViewById`, nested IDs and a click
+callback under ART + GTK/Weston. It is **not a second independent third-party
+APK**. The inflater caps layouts at 1 MiB, at most 16 nodes, 4 nesting levels,
+8192 strings and 256 attributes per node. It rejects unsupported view types.
+Styles, geometry, themes, density/locale selection and full Android rendering
+remain absent.
 
 The GTK integration verification uses a test-only timed auto-close and
 checks the realized GTK label. It does not simulate physical pointer input.

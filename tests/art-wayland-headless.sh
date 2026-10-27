@@ -120,6 +120,33 @@ for expected in \
 done
 echo '[PASS] SDK-compiled external APK runs on host ART and native GTK Wayland.'
 
+# Nested Java Activity compiled against Android SDK uses findViewById
+# and a click listener attached after the compiled XML tree is inflated.
+if ! timeout 40 python3 scripts/anx.py run build/nested-fixture.apk \
+    --unsafe-host-execution --art "$ART_CMD" --backend wayland \
+    --wayland-binary "$NATIVE_BIN" \
+    --framework-dex build/framework/classes.dex \
+    --android-data "$RUNTIME/android-data" \
+    > "$LOG_DIR/nested-art-wayland.log" 2>&1; then
+    cat "$LOG_DIR/nested-art-wayland.log" >&2
+    echo '[FAIL] Nested XML SDK APK on ART and GTK Wayland' >&2
+    exit 1
+fi
+for expected in \
+    '[nested] XML hierarchy and IDs resolved' \
+    '[anx-wayland] window ready' \
+    '[nested] click updated label' \
+    '[anx-wayland] button clicked' \
+    '[anx-wayland] label updated' \
+    '[anx-wayland] window closed'; do
+    grep -Fq "$expected" "$LOG_DIR/nested-art-wayland.log" || {
+        cat "$LOG_DIR/nested-art-wayland.log" >&2
+        echo "[FAIL] Missing nested XML ART/Wayland evidence: $expected" >&2
+        exit 1
+    }
+done
+echo '[PASS] SDK-compiled nested XML inflates, findViewById binds, GTK click repaints.'
+
 # Genuine independent Apache-2.0 app, unmodified from upstream.
 unset ANX_GUI_TEST_AUTOCLICK
 export ANX_GUI_TEST_AUTOCLOSE_TEXT_ONLY=1

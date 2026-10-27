@@ -11,7 +11,7 @@ small Android framework subset. ANX is not a VM or general Android OS.
 | M3 — App and Activity lifecycle | Done for documented subset | `tests/framework-smoke.sh` and ART standalone APK |
 | M4 — Wayland text/input backend | Experimental, headless integration verified | Native GTK4 + Weston + ART CI |
 | M5 — Interactive APK v0.1 MVP | In progress: ART + Wayland and simple compiled resource values | GTK click, live repaint, SDK R.string/color/dimen fixture; **physical pointer unverified** |
-| M6 — Broader Android API coverage | Resources, basic one-TextView XML layout and first independent FOSS APK | Apache-2.0 chiuki Hello World built against SDK and executed on ART/Weston; wider third-party matrix pending |
+| M6 — Broader Android API coverage | Simple nested vertical XML layouts and view IDs, first independent FOSS APK | Official-SDK nested fixture with click/repaint plus unchanged Apache-2.0 chiuki APK; wider real-app matrix pending |
 | M7 — Bionic/JNI/native ABI | Experimental host-x86_64 JNI pilot; Bionic and ABI translation not implemented | Native ELF/ZIP safety tests and host-ART JNI fixture |
 | M8 — Sandbox, license, release | Experimental console Bubblewrap profile and consent gate; still unverified for hostile APKs | Fail-closed mock and policy tests; [Issue #6](https://github.com/zaengit/anx/issues/6) |
 

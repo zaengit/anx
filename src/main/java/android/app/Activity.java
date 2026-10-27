@@ -22,6 +22,10 @@ public class Activity extends Context {
     public void setContentView(int layoutId) {
         contentView = CompiledLayout.inflate(this, layoutId);
     }
+    @SuppressWarnings("unchecked")
+    public <T extends View> T findViewById(int id) {
+        return contentView == null ? null : (T) contentView.findViewById(id);
+    }
     public final View getContentViewForHost() { return contentView; }
     public final void performCreate(Bundle b) { onCreate(b); }
     public final void performStart() { onStart(); }

@@ -4,6 +4,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.view.ViewGroup;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -19,24 +20,24 @@ public final class GtkWaylandBackend implements WindowBackend {
     }
     private Content model(View view) {
         Content result = new Content();
-        if (view instanceof LinearLayout) {
-            LinearLayout layout = (LinearLayout) view;
-            if (layout.getOrientation() != LinearLayout.VERTICAL)
-                throw new UnsupportedOperationException("Only vertical LinearLayout is supported");
-            if (layout.getChildCount() > 2)
-                throw new UnsupportedOperationException("At most one TextView and one Button are supported");
-            for (View child : layout.getChildrenForHost()) collect(result, child);
-        } else {
-            collect(result, view);
-        }
+        collect(result, view, 0);
         if (result.label == null) throw new UnsupportedOperationException("A TextView is required");
         return result;
     }
-    private static void collect(Content result, View child) {
-        if (child instanceof Button && result.button == null) result.button = (Button) child;
-        else if (child instanceof TextView && !(child instanceof Button) && result.label == null)
+    private static void collect(Content result, View child, int depth) {
+        if (depth > 4) throw new UnsupportedOperationException("View hierarchy depth exceeded");
+        if (child instanceof LinearLayout) {
+            LinearLayout layout = (LinearLayout) child;
+            if (layout.getOrientation() != LinearLayout.VERTICAL)
+                throw new UnsupportedOperationException("Only vertical LinearLayout is supported");
+            for (View nested : layout.getChildrenForHost()) collect(result, nested, depth + 1);
+        } else if (child instanceof Button && result.button == null) {
+            result.button = (Button) child;
+        } else if (child instanceof TextView && result.label == null) {
             result.label = (TextView) child;
-        else throw new UnsupportedOperationException("Unsupported GUI view tree");
+        } else {
+            throw new UnsupportedOperationException("At most one TextView and one Button supported");
+        }
     }
     @Override public void show(View view) {
         Content content = model(view);
