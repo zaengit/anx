@@ -137,4 +137,13 @@ echo "[art-container] ART source commit: a1edfc40e8cea3644d80e4e776d3fa7fc397a1c
         ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-jni-smoke.sh
         ANX_NATIVE_OUTPUT_DIR=/anx/build/art-smoke/native bash scripts/build-wayland.sh
         ANX_WAYLAND_BINARY=/anx/build/art-smoke/native/anx-wayland ART_CMD="$art_cmd" ART_SMOKE_LOG_DIR=/anx/build/art-smoke bash tests/art-wayland-headless.sh
+        ANX_VIRTUAL_POINTER_GENERATED_DIR=/anx/build/art-smoke/pointer-generated \
+            ANX_VIRTUAL_POINTER_OUTPUT_DIR=/anx/build/art-smoke/native \
+            bash scripts/build-virtual-pointer-test.sh
+        ANX_POINTER_ART_CMD="$art_cmd" \
+            ANX_WAYLAND_BINARY=/anx/build/art-smoke/native/anx-wayland \
+            ANX_VIRTUAL_POINTER_BINARY=/anx/build/art-smoke/native/anx-virtual-pointer \
+            ANX_POINTER_LOG_DIR=/anx/build/art-smoke \
+            bash tests/wayland-sway-pointer.sh
+        echo "[PASS] ART APK received a compositor-generated Wayland pointer click and repainted GTK."
     '

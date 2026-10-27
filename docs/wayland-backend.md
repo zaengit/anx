@@ -88,3 +88,20 @@ The virtual pointer protocol XML is pinned verbatim from upstream
 copyright/licensing notice is retained inside the XML. The injector is built
 only for CI and is never installed with ANX. It must never be connected to
 an ordinary user desktop compositor, since it can inject pointer events.
+
+## Compositor pointer input with the real ART APK
+
+The Alpine reference integration also builds the **CI-only persistent
+virtual pointer** in the same pinned host ART container and runs
+`tests/wayland-sway-pointer.sh` with `ANX_POINTER_ART_CMD=dalvikvm64`.
+In this mode a real APK (`build/demo.apk`) is launched via
+`scripts/anx.py run` and GTK's button receives a **headless Sway
+wlroots virtual-pointer** move, press and release at the compositor level.
+The Java Activity callback and GTK label-update acknowledgement are checked
+after the process exits. Normal JVM/Sway and ART/Weston smoke tests remain
+in place as separate regressions.
+
+The virtual device only exists in a private CI compositor and is not
+distributed or permitted to run against a user's normal Wayland session.
+This is still not a test with an actual physical mouse, and does not
+cover focus, resizing, drag, accessibility or all Android UI behavior.
