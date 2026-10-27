@@ -15,6 +15,12 @@ public final class ExternalActivity extends Activity {
         if (!"Selamat datang di ANX — ✓".equals(getString(R.string.utf8_probe)))
             throw new AssertionError("UTF-8 compiled string resource failed");
         System.out.println("[external] resources.arsc lookup ok");
+        if (getColor(R.color.accent) != 0xff336699)
+            throw new AssertionError("Compiled color resource mismatch");
+        if (getResources().getDimension(R.dimen.content_gap) != 12f
+                || getResources().getDimensionPixelSize(R.dimen.content_gap) != 12)
+            throw new AssertionError("Compiled dimension resource mismatch");
+        System.out.println("[external] color and dimension resources ok");
         Button button = new Button(this);
         button.setText("Update");
         button.setOnClickListener(v -> {

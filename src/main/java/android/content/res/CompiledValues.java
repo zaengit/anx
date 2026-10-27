@@ -4,17 +4,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-/** Bounded reader of plain string values from an Android compiled resource table.
- * Only default-config, non-complex TYPE_STRING entries are supported.
+/** Bounded reader of simple Android compiled resource values.
+ * Only default-config, non-complex TYPE_STRING / COLOR / DIMENSION entries are supported.
  * Not an Android AssetManager implementation or full resource configuration engine.
  */
-final class CompiledStrings {
+final class CompiledValues {
     private static final int MAX_TABLE = 8 * 1024 * 1024;
     private static final int MAX_STRINGS = 100_000;
     private static final int RES_TABLE = 0x0002;
@@ -25,9 +22,42 @@ final class CompiledStrings {
     private static final int NO_ENTRY = -1;
 
     private final byte[] bytes;
-    private CompiledStrings(byte[] bytes) { this.bytes = bytes; }
+    private CompiledValues(byte[] bytes) { this.bytes = bytes; }
+    private static final int TYPE_DIMENSION = 0x05;
 
-    static String find(String apkPath, int id) {
+    static final class Value {
+        final int type;
+        final int data;
+        final String[] strings;
+        Value(int type, int data, String[] strings) {
+            this.type = type;
+            this.data = data;
+            this.strings = strings;
+        }
+    }
+
+    static String findString(String apkPath, int id) {
+        Value v = findRaw(apkPath, id);
+        return v == null || v.type != TYPE_STRING ? null : get(v.strings, v.data);
+    }
+    static Integer findColor(String apkPath, int id) {
+        Value v = findRaw(apkPath, id);
+        if (v == null || v.type < 0x1c || v.type > 0x1f) return null;
+        return Integer.valueOf(v.data);
+    }
+    static Float findDimension(String apkPath, int id) {
+        Value v = findRaw(apkPath, id);
+        if (v == null || v.type != TYPE_DIMENSION) return null;
+        int unit = v.data & 0x0f;
+        // Fixed virtual density=1.0, scaled density=1.0 for the narrow ANX MVP.
+        if (unit != 0 && unit != 1 && unit != 2) return null;
+        float[] radixMultipliers = {1f / 256f, 1f / 32768f,
+                1f / 8388608f, 1f / 2147483648f};
+        int radix = (v.data >> 4) & 3;
+        return Float.valueOf((v.data & 0xffffff00) * radixMultipliers[radix]);
+    }
+
+    private static Value findRaw(String apkPath, int id) {
         if (apkPath == null || id == 0) return null;
         try (ZipFile zip = new ZipFile(apkPath)) {
             ZipEntry entry = zip.getEntry("resources.arsc");
@@ -44,7 +74,7 @@ final class CompiledStrings {
                     buffer.write(chunk, 0, read);
                 }
             }
-            return new CompiledStrings(buffer.toByteArray()).lookup(id);
+            return new CompiledValues(buffer.toByteArray()).lookup(id);
         } catch (IOException ex) {
             throw invalid("Cannot read compiled resources: " + ex);
         }
@@ -143,7 +173,7 @@ final class CompiledStrings {
             throw invalid("string pool index out of bounds");
         return strings[index];
     }
-    private String lookup(int id) {
+    private Value lookup(int id) {
         if (bytes.length < 12 || u16(0) != RES_TABLE)
             throw invalid("invalid table signature");
         int[] root = chunk(0, bytes.length);
@@ -163,7 +193,7 @@ final class CompiledStrings {
                 int pkgId = positive32(cursor + 8);
                 if (pkgId == targetPkg) {
                     int typeIdOffset = c[0] >= 288 ? positive32(cursor + 284) : 0;
-                    String hit = findType(cursor, c, globals, targetType - typeIdOffset, targetEntry);
+                    Value hit = findType(cursor, c, globals, targetType - typeIdOffset, targetEntry);
                     if (hit != null) return hit;
                 }
             }
@@ -171,7 +201,7 @@ final class CompiledStrings {
         }
         return null;
     }
-    private String findType(int pkgStart, int[] pkg, String[] pool,
+    private Value findType(int pkgStart, int[] pkg, String[] pool,
                             int typeId, int entryIndex) {
         if (typeId <= 0 || typeId > 255) return null;
         int cursor = pkgStart + pkg[0];
@@ -204,8 +234,8 @@ final class CompiledStrings {
                         bounds(entry, (long)entrySize + 8, cursor + c[1]);
                         if ((flags & 1) == 0) {
                             int value = entry + entrySize;
-                            if (u16(value) >= 8 && byteAt(value + 3) == TYPE_STRING)
-                                return get(pool, i32(value + 4));
+                            if (u16(value) >= 8)
+                                return new Value(byteAt(value + 3), i32(value + 4), pool);
                         }
                     }
                 }

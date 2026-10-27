@@ -22,6 +22,7 @@ public abstract class Context {
     public final Resources getResources() { return new Resources(assets); }
     public final String getString(int id) { return getResources().getString(id); }
     public final CharSequence getText(int id) { return getResources().getText(id); }
+    public final int getColor(int id) { return getResources().getColor(id); }
     public final PackageManager getPackageManager() { return new PackageManager(this); }
     public final File getFilesDir() { return AppStorage.directory(packageName, "files"); }
     public final File getCacheDir() { return AppStorage.directory(packageName, "cache"); }
