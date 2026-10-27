@@ -13,6 +13,8 @@ import java.io.FileNotFoundException;
 public abstract class Context {
     public static final int MODE_PRIVATE = 0;
     public static final int MODE_APPEND = 0x8000;
+    public static final String CLIPBOARD_SERVICE = "clipboard";
+    private final ClipboardManager hostClipboard = new android.text.ClipboardManager();
     private String packageName = "unknown";
     private Application application;
     private AssetManager assets = new AssetManager(null);
@@ -27,6 +29,12 @@ public abstract class Context {
     public final CharSequence getText(int id) { return getResources().getText(id); }
     public final int getColor(int id) { return getResources().getColor(id); }
     public final PackageManager getPackageManager() { return new PackageManager(this); }
+    public final ContentResolver getContentResolver() { return new ContentResolver(this); }
+    public Object getSystemService(String name) {
+        // In-process only: never reads/writes the actual desktop clipboard.
+        if (CLIPBOARD_SERVICE.equals(name)) return hostClipboard;
+        return null;
+    }
     public final File getFilesDir() { return AppStorage.directory(packageName, "files"); }
     public final File getCacheDir() { return AppStorage.directory(packageName, "cache"); }
     public final SharedPreferences getSharedPreferences(String name, int mode) {
