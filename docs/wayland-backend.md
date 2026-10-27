@@ -71,8 +71,8 @@ precision timers, a full event scheduler, or a guarantee for background tasks.
 
 `tests/wayland-sway-pointer.sh` runs an isolated headless Sway compositor
 with a JVM Activity and the **real GTK4 Wayland client**. It reads the bounds
-of a realized GTK Button and its compositor window, then uses Sway IPC to
-move the seat cursor and press/release button1. It verifies the Java click
+of a realized GTK Button and its compositor window, then uses a CI-only, persistent `zwlr_virtual_pointer_v1` connection to
+move the compositor seat cursor and press/release button1. It verifies the Java click
 callback and GTK label repaint. Unlike `ANX_GUI_TEST_AUTOCLICK=1`, it
 does not emit GTK's `clicked` signal directly. GTK geometry diagnostics
 are enabled only with `ANX_GUI_TEST_REPORT_BUTTON_GEOMETRY=1`.
@@ -81,3 +81,10 @@ This is **compositor-generated pointer input**, not a physical mouse test.
 It does not prove a native desktop session's resize/focus behavior, touch,
 other widget interactions or long-running app stability. The pinned-ART/Weston
 regression remains separate and continues to use a GTK test signal.
+
+The virtual pointer protocol XML is pinned verbatim from upstream
+[wlr-protocols](https://github.com/swaywm/wlr-protocols) at
+`b010a03648b88d143236de193bddbfea0c08bc84`; its own permissive
+copyright/licensing notice is retained inside the XML. The injector is built
+only for CI and is never installed with ANX. It must never be connected to
+an ordinary user desktop compositor, since it can inject pointer events.
