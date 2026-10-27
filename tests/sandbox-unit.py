@@ -45,7 +45,7 @@ class SandboxCommandTest(unittest.TestCase):
         self.assertNotIn("--share-net", argv)
         self.assertIn("--clearenv", argv)
         self.assertEqual(argv.count("--bind"), 2)
-        self.assertIn("/anx/apps", argv)
+        self.assertIn("/anx/apps/org.anx.fixture", argv)
         self.assertIn("/anx/data", argv)
         self.assertEqual(argv[-5:], ["org.anx.launcher.Main",
                                      "org.anx.fixture.Activity",
@@ -58,6 +58,24 @@ class SandboxCommandTest(unittest.TestCase):
         self.assertIn(str(self.native), argv)
         pos = argv.index(str(self.native))
         self.assertEqual("--ro-bind", argv[pos - 1])
+
+    def test_cannot_read_other_package_mount(self):
+        sibling = self.apps / "org.example.other"
+        sibling.mkdir()
+        (sibling / "secret.txt").write_text("private", encoding="utf-8")
+        argv = self.command()
+        self.assertNotIn(str(sibling.resolve()), argv)
+        self.assertIn(str((self.apps / "org.anx.fixture").resolve()), argv)
+
+    def test_invalid_package_rejected(self):
+        with self.assertRaisesRegex(SandboxError, "invalid package identifier"):
+            wrap_console_art(
+                art_executable=pathlib.Path("/usr/bin/java"),
+                framework_dex=self.framework, apk_path=self.apk,
+                launcher="org.demo.Activity", package="../escape",
+                application="-", android_data=self.data, app_data_root=self.apps,
+                bubblewrap_executable="/usr/bin/bwrap",
+            )
 
     def test_missing_bwrap_rejected(self):
         with self.assertRaisesRegex(SandboxError, "required"):

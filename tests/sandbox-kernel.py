@@ -38,7 +38,8 @@ for forbidden in ("/anx/framework.dex", "/anx/app.apk", "/usr/bin/env"):
         pass
     else:
         raise AssertionError("read-only mount is writable: " + forbidden)
-target = Path("/anx/apps/guest-wrote.txt")
+assert not Path("/anx/apps/org.other/secret.txt").exists(), "other package data visible"
+target = Path("/anx/apps/org.fixture/guest-wrote.txt")
 target.write_text("persist-from-bwrap", encoding="utf-8")
 assert Path("/anx/data").is_dir(), "Android data bind is missing"
 assert Path("/tmp").is_dir(), "temporary directory unavailable"
@@ -67,6 +68,9 @@ def main() -> int:
         apps = root / "apps"
         for directory in (android_data, apps):
             directory.mkdir()
+        other = apps / "org.other"
+        other.mkdir()
+        (other / "secret.txt").write_text("other app data", encoding="utf-8")
         framework.write_bytes(b"framework-fixture")
         apk.write_bytes(b"apk-fixture")
         # Deliberately outside the sandbox input paths, under the user's home.
@@ -113,7 +117,7 @@ def main() -> int:
             if "ANX_SANDBOX_KERNEL_OK" not in result.stdout:
                 print("[FAIL] Kernel probe did not report expected evidence", file=sys.stderr)
                 return 1
-            if (apps / "guest-wrote.txt").read_text(encoding="utf-8") != "persist-from-bwrap":
+            if (apps / "org.fixture/guest-wrote.txt").read_text(encoding="utf-8") != "persist-from-bwrap":
                 print("[FAIL] Explicit writable ANX app data bind did not persist", file=sys.stderr)
                 return 1
             if apk.read_bytes() != b"apk-fixture":
@@ -122,7 +126,7 @@ def main() -> int:
         finally:
             marker.unlink(missing_ok=True)
     print("[PASS] Real Bubblewrap: separate network/mount namespaces, "
-          "no host home/env, read-only APK/runtime, app data persistence.")
+          "no host home/env, read-only APK/runtime, per-package data persistence.")
     return 0
 
 if __name__ == "__main__":

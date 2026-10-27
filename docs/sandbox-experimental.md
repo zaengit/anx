@@ -5,8 +5,9 @@ process using Bubblewrap's Linux user/mount/PID/network namespaces, *only*
 with `--backend console`. The child receives a read-only `/usr` and runtime
 library paths, a private `/tmp`, `/proc`, `/dev`, and read-only binds for
 the framework DEX and APK at `/anx/`. Only the dedicated Android data
-directory and ANX's per-app data root are mounted writable at `/anx/data`
-and `/anx/apps`. The host home, `/etc`, other working directories, the
+directory and a **single validated package's** app-data directory are mounted
+writable at `/anx/data` and `/anx/apps/<package>`. Other ANX packages' data
+directories are not mounted. The host home, `/etc`, other working directories, the
 host `/run` and Wayland sockets are not mounted by the profile. Inherited
 environment variables are cleared before launching ART.
 
@@ -50,7 +51,8 @@ rather than a fake helper. On a Linux host permitting user namespaces it
 checks that mount and network namespace identifiers differ from the host,
 the host's home-only marker is inaccessible, inherited environment is
 cleared, the APK and framework mounts are read-only, outbound TCP cannot
-connect, and only explicitly writable ANX data directories persist writes.
+connect, and only explicitly writable ANX data directories persist writes, while
+a sibling app package's data is inaccessible.
 
 CI probes the unprivileged runner first. If Ubuntu's AppArmor/userns rules
 reject namespace creation, the probe returns a distinct `UNSUPPORTED`

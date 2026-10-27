@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import os
+import re
 import shutil
 
 
@@ -43,6 +44,15 @@ def wrap_console_art(
         raise SandboxError("sandbox input or persistent data directory does not exist")
     if not android_data.is_dir() or not app_data_root.is_dir():
         raise SandboxError("sandbox writable directories must be directories")
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)+", package):
+        raise SandboxError("invalid package identifier for sandbox directory")
+    # Never expose ALL other packages' data to a sandboxed application.
+    package_dir = app_data_root / package
+    if package_dir.is_symlink():
+        raise SandboxError("per-package data directory cannot be a symlink")
+    package_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if not package_dir.is_dir() or package_dir.resolve().parent != app_data_root.resolve():
+        raise SandboxError("per-package data directory escaped its root")
     if native_directory and not native_directory.is_dir():
         raise SandboxError("sandbox native library directory is missing")
     if not framework_dex.is_file() or not apk_path.is_file():
@@ -65,13 +75,14 @@ def wrap_console_art(
         "--ro-bind-try", "/lib64", "/lib64",
         "--ro-bind-try", "/bin", "/bin",
         "--ro-bind-try", "/sbin", "/sbin",
-        "--dir", "/anx", "--dir", "/home", "--dir", "/root",
+        "--dir", "/anx", "--dir", "/anx/apps",
+        "--dir", "/home", "--dir", "/root",
         "--tmpfs", "/tmp",
         "--proc", "/proc", "--dev", "/dev",
         "--ro-bind", str(framework_dex.resolve()), "/anx/framework.dex",
         "--ro-bind", str(apk_path.resolve()), "/anx/app.apk",
         "--bind", str(android_data.resolve()), "/anx/data",
-        "--bind", str(app_data_root.resolve()), "/anx/apps",
+        "--bind", str(package_dir.resolve()), "/anx/apps/" + package,
     ]
     classpath = "/anx/framework.dex:/anx/app.apk"
     java_args = [str(art), "-cp", classpath, "org.anx.launcher.Main",
