@@ -39,3 +39,14 @@ For tests using a known, trusted APK:
 Report security concerns privately through the repository owner's security
 contact/channel; do not include credentials or exploit artifacts in public
 issue reports.
+
+## Experimental console-only process isolation
+
+`--experimental-sandbox --backend console --unsafe-host-execution` asks
+Bubblewrap to create restricted Linux namespaces with a private mount view
+and no host network. It refuses to run if the required helper/permissions
+are missing. See [docs/sandbox-experimental.md](docs/sandbox-experimental.md).
+
+This is a **development-only, unreviewed profile** and not grounds for
+running untrusted APKs. CI verifies argv policy and fail-closed behavior;
+it does **not** certify actual kernel isolation or resistance to attacks.

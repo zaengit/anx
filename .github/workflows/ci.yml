@@ -41,6 +41,9 @@ jobs:
       - name: Run JVM smoke test
         run: bash tests/smoke.sh
 
+      - name: Test fail-closed Bubblewrap command construction
+        run: python3 tests/sandbox-unit.py
+
       - name: Test native library ABI and extraction safety
         run: python3 tests/native-libraries-unit.py
 
@@ -52,6 +55,9 @@ jobs:
 
       - name: Run APK inspection smoke test
         run: bash tests/apk-inspect-smoke.sh
+
+      - name: Verify sandbox cannot fall back to unrestricted ART
+        run: bash tests/sandbox-smoke.sh
 
   wayland-backend:
     name: Native Wayland compile and headless GUI smoke

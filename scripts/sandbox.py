@@ -27,7 +27,8 @@ def wrap_console_art(
     native_directory: Path | None = None,
     bubblewrap_executable: str | None = None,
 ) -> list[str]:
-    bwrap = bubblewrap_executable or shutil.which("bwrap")
+    bwrap = (shutil.which("bwrap") if bubblewrap_executable is None
+             else bubblewrap_executable)
     if not bwrap:
         raise SandboxError("Bubblewrap (bwrap) is required for --experimental-sandbox")
     art = art_executable.resolve()

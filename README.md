@@ -3,6 +3,10 @@
 A proof of concept for Java-based Android application compatibility in a Linux process **without** Waydroid, a VM, a container, or LineageOS. The design uses AOSP host ART (or an AOSP-based `art_standalone` fork). It **cannot yet** run Android APKs in general, and an experimental native GTK4/GDK Wayland backend is available for the narrow TextView + Button demo (console fallback remains available).
 
 See [STATUS.md](STATUS.md) for tested milestone status and remaining release blockers.
+The optional `--experimental-sandbox` flag attempts **console-only**
+Bubblewrap namespace and filesystem isolation; it **fails closed** if
+Bubblewrap cannot enforce it. It remains experimental and still requires
+`--unsafe-host-execution`. See [docs/sandbox-experimental.md](docs/sandbox-experimental.md).
 **All APK execution is denied by default** until the user explicitly acknowledges
 the lack of process isolation with `--unsafe-host-execution`. This flag is
 **not a sandbox**; use it only for verified/trusted test APKs.
