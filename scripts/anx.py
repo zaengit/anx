@@ -13,6 +13,7 @@ from apk_inspector import ApkError, format_metadata, inspect_apk
 from cgroup_v2 import CgroupError, delegated_cgroup, join_cgroup
 from native_libraries import NativeLibraryError, extract_native_libraries
 from sandbox import SandboxError, apply_sandbox_resource_limits, wrap_console_art
+from sandbox_supervisor import SandboxSignals, run_sandbox_helper
 from secondary_dex import SecondaryDexError, extract_secondary_dex
 
 
@@ -129,76 +130,82 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
     print(f"[anx] ART: {executable}", flush=True)
     print(f"[anx] package: {manifest.package_name}", flush=True)
     print(f"[anx] launcher: {manifest.launcher_activity}", flush=True)
+    signals = SandboxSignals()
     try:
-        # Keep the checked, isolated extraction directory alive while ART runs.
-        # This is not an OS sandbox; the user already opted into host execution.
-        with contextlib.ExitStack() as cleanup:
-            extracted = (cleanup.enter_context(tempfile.TemporaryDirectory(prefix="anx-native-"))
-                         if metadata.native_abis else None)
-            dex_dir = (cleanup.enter_context(tempfile.TemporaryDirectory(prefix="anx-dex-"))
-                       if len(metadata.dex_files) > 1 else None)
-            secondary = (extract_secondary_dex(metadata, Path(dex_dir))
-                         if dex_dir else ())
-            if secondary:
-                command[2] = os.pathsep.join((class_path, *(str(p) for p in secondary)))
-                print(f"[anx] secondary DEX files: {len(secondary)}", flush=True)
-            if extracted is not None:
-                abi, names = extract_native_libraries(metadata, Path(extracted))
-                command.insert(1, "-Djava.library.path=" + extracted)
-                environment["ANX_NATIVE_LIBRARY_DIR"] = extracted
-                print(f"[anx] native ABI: {abi} ({len(names)} libraries)", flush=True)
-            if experimental_sandbox:
-                command = wrap_console_art(
-                    art_executable=Path(executable),
-                    framework_dex=framework_dex.resolve(),
-                    apk_path=metadata.path,
-                    launcher=manifest.launcher_activity or "",
-                    package=manifest.package_name,
-                    application=manifest.application_name or "-",
-                    android_data=data_dir.resolve(),
-                    app_data_root=app_data_root.resolve(),
-                    native_directory=Path(extracted) if extracted else None,
-                    secondary_dex_paths=secondary,
-                )
-                print("[anx] experimental console isolation via Bubblewrap", flush=True)
-            # The cgroup leaf is intentionally opt-in. The caller must arrange
-            # user-delegated memory/pids controllers; never mutate host policy.
-            cgroup_leaf = (cleanup.enter_context(delegated_cgroup(experimental_cgroup_parent))
-                           if experimental_cgroup_parent is not None else None)
+        # Install only in the opt-in sandbox. SIGTERM must unwind ExitStack
+        # rather than bypass cgroup.kill and leak detached descendants.
+        with signals.install() if experimental_sandbox else contextlib.nullcontext():
+            # Keep the checked, isolated extraction directory alive while ART runs.
+            # This is not an OS sandbox; the user already opted into host execution.
+            with contextlib.ExitStack() as cleanup:
+                extracted = (cleanup.enter_context(tempfile.TemporaryDirectory(prefix="anx-native-"))
+                             if metadata.native_abis else None)
+                dex_dir = (cleanup.enter_context(tempfile.TemporaryDirectory(prefix="anx-dex-"))
+                           if len(metadata.dex_files) > 1 else None)
+                secondary = (extract_secondary_dex(metadata, Path(dex_dir))
+                             if dex_dir else ())
+                if secondary:
+                    command[2] = os.pathsep.join((class_path, *(str(p) for p in secondary)))
+                    print(f"[anx] secondary DEX files: {len(secondary)}", flush=True)
+                if extracted is not None:
+                    abi, names = extract_native_libraries(metadata, Path(extracted))
+                    command.insert(1, "-Djava.library.path=" + extracted)
+                    environment["ANX_NATIVE_LIBRARY_DIR"] = extracted
+                    print(f"[anx] native ABI: {abi} ({len(names)} libraries)", flush=True)
+                if experimental_sandbox:
+                    command = wrap_console_art(
+                        art_executable=Path(executable),
+                        framework_dex=framework_dex.resolve(),
+                        apk_path=metadata.path,
+                        launcher=manifest.launcher_activity or "",
+                        package=manifest.package_name,
+                        application=manifest.application_name or "-",
+                        android_data=data_dir.resolve(),
+                        app_data_root=app_data_root.resolve(),
+                        native_directory=Path(extracted) if extracted else None,
+                        secondary_dex_paths=secondary,
+                    )
+                    print("[anx] experimental console isolation via Bubblewrap", flush=True)
+                # The cgroup leaf is intentionally opt-in. The caller must arrange
+                # user-delegated memory/pids controllers; never mutate host policy.
+                cgroup_leaf = (cleanup.enter_context(delegated_cgroup(experimental_cgroup_parent))
+                               if experimental_cgroup_parent is not None else None)
 
-            def sandbox_child_setup() -> None:
-                apply_sandbox_resource_limits()
-                if cgroup_leaf is not None:
-                    join_cgroup(cgroup_leaf)
+                def sandbox_child_setup() -> None:
+                    apply_sandbox_resource_limits()
+                    if cgroup_leaf is not None:
+                        join_cgroup(cgroup_leaf)
 
-            # Keep the experimental helper's *own* host-side environment
-            # minimal as well: bwrap --clearenv only resets its guest process.
-            # Never forward an inherited host stdin (possibly a secret file
-            # or terminal) to APK code. Keep stdout/stderr for console output.
-            launch_env = ({"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
-                          if experimental_sandbox else environment)
-            timeout_seconds = ((sandbox_timeout_seconds
-                                if sandbox_timeout_seconds is not None
-                                else DEFAULT_SANDBOX_TIMEOUT_SECONDS)
-                               if experimental_sandbox else None)
-            try:
-                return subprocess.run(
-                    command, env=launch_env, check=False,
-                    close_fds=True,
-                    stdin=subprocess.DEVNULL if experimental_sandbox else None,
-                    # The single-threaded CLI applies both rlimits and cgroup
-                    # membership in the child before Bubblewrap can execute.
-                    preexec_fn=sandbox_child_setup if experimental_sandbox else None,
-                    timeout=timeout_seconds,
-                ).returncode
-            except subprocess.TimeoutExpired:
-                # subprocess.run kills and reaps the direct bwrap process. The
-                # ExitStack then kills *all* descendants when delegated cgroup
-                # v2 is active. Without cgroup, --die-with-parent is only a
-                # partial defense; detached descendants are not guaranteed gone.
-                print(f"anx run: experimental sandbox exceeded wall-clock "
-                      f"timeout of {timeout_seconds}s", file=sys.stderr)
-                return 124
+                # Keep the experimental helper's *own* host-side environment
+                # minimal as well: bwrap --clearenv only resets its guest process.
+                # Never forward an inherited host stdin (possibly a secret file
+                # or terminal) to APK code. Keep stdout/stderr for console output.
+                launch_env = ({"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
+                              if experimental_sandbox else environment)
+                timeout_seconds = ((sandbox_timeout_seconds
+                                    if sandbox_timeout_seconds is not None
+                                    else DEFAULT_SANDBOX_TIMEOUT_SECONDS)
+                                   if experimental_sandbox else None)
+                if experimental_sandbox:
+                    # Reap the direct Bubblewrap helper on timeout or interruption
+                    # BEFORE ExitStack kills detached cgroup descendants.
+                    code, timed_out = run_sandbox_helper(
+                        command, environment=launch_env,
+                        timeout_seconds=timeout_seconds, child_setup=sandbox_child_setup,
+                    )
+                    if timed_out:
+                        print(f"anx run: experimental sandbox exceeded wall-clock "
+                              f"timeout of {timeout_seconds}s", file=sys.stderr)
+                    return code
+                # Trusted, unsandboxed mode keeps its pre-existing semantics.
+                return subprocess.run(command, env=launch_env, check=False,
+                                      close_fds=True).returncode
+    except KeyboardInterrupt:
+        if not experimental_sandbox:
+            raise
+        print("anx run: experimental sandbox interrupted by "
+              + ("SIGTERM" if signals.terminated else "SIGINT"), file=sys.stderr)
+        return signals.exit_code
     except (OSError, subprocess.SubprocessError, NativeLibraryError,
             SecondaryDexError, SandboxError, CgroupError) as exc:
         print(f"anx run: host execution setup failed: {exc}", file=sys.stderr)
