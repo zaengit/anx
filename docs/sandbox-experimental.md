@@ -17,6 +17,28 @@ file descriptors from reaching the child. **stdout/stderr remain connected to
 the invoking terminal or redirection targets** for console diagnostics; they
 are not a private logging boundary.
 
+## Experimental child resource budgets
+
+Only when `--experimental-sandbox` is selected, the single-threaded ANX
+launcher applies Linux `setrlimit(2)` in the child **before** executing
+Bubblewrap. Both soft and hard limits are tightened without ever increasing
+a stricter pre-existing host limit:
+
+| Kernel limit | ANX ceiling | Restriction |
+| --- | --- | --- |
+| `RLIMIT_CORE` | 0 bytes | Disables core dumps from the limited child |
+| `RLIMIT_NOFILE` | 256 | Caps descriptors open by each descendant |
+| `RLIMIT_FSIZE` | 256 MiB | Caps the size of a single file written |
+| `RLIMIT_CPU` | 180 CPU seconds | Kernel CPU-time limit per process, **not elapsed time** |
+
+A failure while applying any limit aborts the child *before* executing
+Bubblewrap. No unsandboxed retry occurs. The limits are intentionally fixed
+for this experimental profile and can reject otherwise valid large or
+long-running apps. They do **not** cap aggregate disk usage, resident memory,
+wall-clock time, the number of processes, network usage or I/O throughput.
+`RLIMIT_NOFILE` also does not replace a file-descriptor capability policy.
+A cgroup-based resource policy and hostile APK testing remain release blockers.
+
 ```sh
 sudo apt install bubblewrap
 bash scripts/build-demo-apk.sh
@@ -47,12 +69,17 @@ arguments and proves that failed isolation never retries ART unsandboxed.
 `python3 tests/sandbox-launcher-smoke.py` exercises the **real ANX CLI**
 against a fake Bubblewrap helper while injecting a secret environment
 variable, a host stdin file and a deliberately inheritable file descriptor.
-It confirms all three are absent in the helper. It is not a kernel sandbox test.
+It confirms all three are absent in the helper and checks the inherited
+resource limits. `python3 tests/sandbox-limits.py` additionally verifies
+resource ceilings, preservation of stricter inherited limits, unchanged
+parent limits and fail-closed setup. The real `tests/sandbox-kernel.py`
+probe checks those budgets inside the Bubblewrap guest on the privileged
+CI runner. The helper test is not a kernel namespace isolation test.
 
 **The unit and fake-helper tests are structural/mock tests, not evidence
 that the kernel namespaces work on a target distro.** Successful runtime kernel isolation,
-network denial, host-file denial, resource limits, Wayland permissions and
-security audit are separate release gates.
+network denial, host-file denial, comprehensive quotas, Wayland permissions
+and security audit are separate release gates.
 
 ## Real kernel isolation verification (development)
 
