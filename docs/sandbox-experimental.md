@@ -49,16 +49,22 @@ Adjust it to between 1 and 3600 seconds using
 The timeout option is rejected without the experimental sandbox; invalid
 values fail before launching Bubblewrap.
 
-When the deadline expires, Python's `subprocess.run(timeout=...)` kills
-and reaps the **direct Bubblewrap process**, reports the timeout on stderr
-and exits with status `124`. There is never an unsandboxed retry. If the
+When the deadline expires, the launcher supervises Bubblewrap with
+`subprocess.Popen`, forcibly kills and reaps the **direct Bubblewrap
+process**, reports the timeout on stderr and exits with status `124`.
+During an ordinary SIGTERM or SIGINT, the launcher also kills and reaps
+the direct helper and unwinds its managed resources, returning `143`
+(SIGTERM) or `130` (SIGINT). SIGTERM is converted into an exception only
+while the sandbox cleanup scope is active; the prior signal handler is
+restored afterward. There is never an unsandboxed retry. If the
 optional delegated cgroup is active, leaving its context calls
 `cgroup.kill`, checks that it is empty and removes it; this also covers
 descendant processes. Without a delegated cgroup, Bubblewrap's
 `--die-with-parent` offers only partial containment. A detached child
 outside the Bubblewrap parent relationship is **not proven to be killed**
-by the parent timeout alone. This deadline is not an independent
-kernel-enforced containment boundary or a security certification.
+by the parent timeout or signal handler alone. Neither SIGKILL nor host
+crashes allow Python cleanup handlers to run. This supervision is not an
+independent kernel-enforced containment boundary or a security certification.
 
 ## Optional delegated cgroup v2 (experimental)
 
@@ -137,15 +143,19 @@ memory/process enforcement. `tests/sandbox-launcher-smoke.py` also checks
 that the CLI rejects an unavailable cgroup rather than launching Bubblewrap.
 On a machine with an **actually delegated** cgroup parent, run
 `python3 tests/cgroup-kernel.py "$CGROUP_PARENT"` to validate real kernel
-membership, configured budgets, descendant killing and removal of the
-temporary leaf. This real-kernel test requires explicit developer setup and
+membership, configured budgets, the detached child's membership before
+cleanup, and that it is no longer running after `cgroup.kill` and leaf
+removal. This real-kernel test requires explicit developer setup and
 has **not** been run on GitHub's non-delegated default runner; the CI unit
 test cannot substitute for it.
 `python3 tests/sandbox-timeout-smoke.py` verifies that a hung fake
 Bubblewrap process is killed after one second with status `124`, only
 one launch occurs, invalid options are rejected and ordinary exit codes
-remain unchanged. The mocked cgroup unit test also verifies teardown
-after a timeout; these are not real hostile-descendant tests.
+remain unchanged. The same CLI test sends SIGTERM and SIGINT to an active
+launcher and confirms statuses 143/130 and that the direct helper is
+reaped without retry. The mocked cgroup unit test verifies teardown
+after both timeout and SIGTERM, including restoration of the previous
+signal handler. These are not real hostile-descendant tests.
 The real `tests/sandbox-kernel.py`
 probe checks kernel rlimits inside the Bubblewrap guest on the privileged
 CI runner. The helper test is not a kernel namespace isolation test.
