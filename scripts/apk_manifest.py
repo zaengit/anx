@@ -93,8 +93,11 @@ def _parse_string_pool(data: bytes, offset: int, size: int, header_size: int) ->
         raise ManifestError("string pool count exceeds safety limit")
     offsets_start = offset + header_size
     strings_base = offset + strings_start
-    if offsets_start + 4 * (string_count + style_count) > end or strings_base > end:
+    offsets_end = offsets_start + 4 * (string_count + style_count)
+    if offsets_end > end or strings_base > end:
         raise ManifestError("string pool offsets are out of bounds")
+    if strings_base < offsets_end:
+        raise ManifestError("string data overlaps string pool offsets")
 
     utf8 = bool(flags & 0x100)
     strings: list[str] = []
@@ -105,19 +108,27 @@ def _parse_string_pool(data: bytes, offset: int, size: int, header_size: int) ->
             raise ManifestError("string offset is out of bounds")
         if utf8:
             _, cursor = _length8(data, cursor)  # UTF-16 code-unit length
+            if cursor >= end:
+                raise ManifestError("truncated UTF-8 string length")
             byte_length, cursor = _length8(data, cursor)
             string_end = cursor + byte_length
-            if string_end >= end:
+            if cursor > end or string_end >= end:
                 raise ManifestError("truncated UTF-8 string")
+            if data[string_end] != 0:
+                raise ManifestError("unterminated UTF-8 string")
             try:
                 strings.append(data[cursor:string_end].decode("utf-8"))
             except UnicodeDecodeError as exc:
                 raise ManifestError("invalid UTF-8 string in manifest") from exc
         else:
+            if cursor + 2 > end:
+                raise ManifestError("truncated UTF-16 string length")
             char_length, cursor = _length16(data, cursor)
             string_end = cursor + char_length * 2
-            if string_end + 2 > end:
+            if cursor > end or string_end + 2 > end:
                 raise ManifestError("truncated UTF-16 string")
+            if data[string_end:string_end + 2] != b"\x00\x00":
+                raise ManifestError("unterminated UTF-16 string")
             try:
                 strings.append(data[cursor:string_end].decode("utf-16le"))
             except UnicodeDecodeError as exc:
@@ -300,6 +311,8 @@ def parse_binary_manifest(data: bytes) -> ManifestInfo:
 
     if offset != total_size or strings is None:
         raise ManifestError("binary XML ended unexpectedly")
+    if stack:
+        raise ManifestError("unclosed XML elements")
     if package_name is None:
         raise ManifestError("manifest package name is missing")
 

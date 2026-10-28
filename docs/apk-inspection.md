@@ -40,6 +40,9 @@ exist. These do not imply Bionic compatibility, Android system services,
 full `resources.arsc` configuration handling or general third-party APK support.
 Malformed archives and unsupported inputs fail with a targeted error.
 
-Truncated UTF-8 string lengths in binary XML now raise a controlled
-`ManifestError`/`ApkError` rather than an uncaught `IndexError`; the
-standalone `tests/manifest-safety.py` regression runs in CI.
+The binary XML string-pool reader rejects truncated lengths, missing UTF-8
+and UTF-16 terminators, and string data overlapping its offset array.
+The manifest parser also rejects unclosed element stacks. These malformed
+inputs raise controlled `ManifestError`/`ApkError` exceptions; the
+standalone `tests/manifest-safety.py` regression runs in CI. This validation
+improves inspection robustness but is not an APK sandbox.
