@@ -42,6 +42,31 @@ test -f build/unsafe-art-was-invoked || {
 }
 echo '[PASS] Untrusted APK launch is denied by default and explicit opt-in is tested.'
 
+# A valid ZIP with malformed primary DEX must never reach ART, even with opt-in.
+python3 - <<'PY'
+from pathlib import Path
+import zipfile
+
+with zipfile.ZipFile("build/demo.apk") as source:
+    entries = [(info, source.read(info)) for info in source.infolist()]
+with zipfile.ZipFile("build/invalid-primary-dex.apk", "w") as target:
+    for info, data in entries:
+        target.writestr(info, b"not-a-dex" if info.filename == "classes.dex" else data)
+PY
+python3 scripts/anx.py inspect build/invalid-primary-dex.apk >/dev/null
+rm -f build/unsafe-art-was-invoked
+if python3 scripts/anx.py run build/invalid-primary-dex.apk --art build/fake-art \
+    --unsafe-host-execution > build/invalid-primary-dex.out 2>&1; then
+    echo '[FAIL] Invalid primary DEX reached host ART' >&2
+    exit 1
+fi
+grep -Fq 'primary DEX header is invalid: classes.dex' build/invalid-primary-dex.out
+if [[ -e build/unsafe-art-was-invoked ]]; then
+    echo '[FAIL] ART was invoked for a malformed primary DEX' >&2
+    exit 1
+fi
+echo '[PASS] Malformed primary DEX fails with a controlled diagnostic before ART starts.'
+
 bash scripts/build-external-apk.sh
 bash scripts/build-chiuki-apk.sh
 bash scripts/build-self-aware-apk.sh
