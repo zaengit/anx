@@ -71,6 +71,9 @@ jobs:
       - name: Verify sandbox helper drops host environment and file descriptors
         run: python3 tests/sandbox-launcher-smoke.py
 
+      - name: Verify sandbox wall-clock timeout, cleanup and fail-closed CLI validation
+        run: python3 tests/sandbox-timeout-smoke.py
+
   wayland-backend:
     name: Native Wayland compile and headless GUI smoke
     runs-on: ubuntu-24.04
