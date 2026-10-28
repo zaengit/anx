@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 from cgroup_v2 import (CgroupError, MEMORY_MAX, PIDS_MAX, delegated_cgroup,
                        join_cgroup)
+from sandbox_supervisor import SandboxSignals
 
 
 class DelegatedCgroupTest(unittest.TestCase):
@@ -117,6 +119,20 @@ class DelegatedCgroupTest(unittest.TestCase):
                     )
             self.assertFalse(leaf.exists())
         self.assertEqual(list(self.parent.glob("anx-*")), [])
+
+    def test_sigterm_unwinds_cgroup_and_restores_handler(self):
+        original = signal.getsignal(signal.SIGTERM)
+        guard = SandboxSignals()
+        m1, m2 = self.simulated_kernel()
+        with m1, m2:
+            with self.assertRaises(KeyboardInterrupt):
+                with guard.install():
+                    with delegated_cgroup(self.parent, root=self.root) as leaf:
+                        signal.raise_signal(signal.SIGTERM)
+            self.assertFalse(leaf.exists())
+        self.assertTrue(guard.terminated)
+        self.assertEqual(guard.exit_code, 143)
+        self.assertIs(signal.getsignal(signal.SIGTERM), original)
 
     def test_child_join_failure_never_executes(self):
         with tempfile.TemporaryDirectory() as directory:
