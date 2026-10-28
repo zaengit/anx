@@ -150,7 +150,14 @@ a *separate* temporary ANX leaf with `pids.max=8` and verifies the kernel
 rejects excess threads (including an increase in `pids.events max`); then it
 creates another private leaf with `memory.max=64 MiB` and verifies that
 a child allocating 128 MiB is killed by SIGKILL with an increase in
-`memory.events oom_kill`. The reduced stress limits apply only inside
+`memory.events oom_kill`. The memory stress leaf also sets
+`memory.swap.max=0` **only for that disposable leaf**. Otherwise a host
+permitting swap may move cold pages out, allowing the allocation to
+finish without actually violating the `memory.max` RAM charge. A missing
+swap-control file is an explicit probe failure rather than false proof
+of OOM enforcement. This test setting does not change ANX runtime
+swap policy, and a runtime `memory.max` is not by itself a total
+RAM-plus-swap budget. The reduced stress limits apply only inside
 the probe's private disposable leaves, **not** the delegated parent, other
 applications, or ANX's normal 512 MiB/64-task profile. This intentionally
 provokes a contained OOM event and should only be used on a development
