@@ -10,6 +10,7 @@ import subprocess
 import sys
 
 from apk_inspector import ApkError, format_metadata, inspect_apk
+from cgroup_v2 import CgroupError, delegated_cgroup, join_cgroup
 from native_libraries import NativeLibraryError, extract_native_libraries
 from sandbox import SandboxError, apply_sandbox_resource_limits, wrap_console_art
 from secondary_dex import SecondaryDexError, extract_secondary_dex
@@ -21,7 +22,7 @@ DEFAULT_FRAMEWORK_DEX = ROOT / "build" / "framework" / "classes.dex"
 
 def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
          backend: str, wayland_binary: str | None, unsafe_host_execution: bool,
-         experimental_sandbox: bool) -> int:
+         experimental_sandbox: bool, experimental_cgroup_parent: Path | None) -> int:
     try:
         metadata = inspect_apk(apk)
     except ApkError as exc:
@@ -82,6 +83,10 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
                             and resolved_native else "console")
         if selected_backend == "console":
             print("[anx] no compiled Wayland backend/session; using console backend", flush=True)
+    if experimental_cgroup_parent is not None and not experimental_sandbox:
+        print("anx run: --experimental-cgroup-parent requires --experimental-sandbox",
+              file=sys.stderr)
+        return 2
     if experimental_sandbox and selected_backend != "console":
         print("anx run: experimental sandbox supports --backend console only; "
               "choose it explicitly even on a Wayland desktop.", file=sys.stderr)
@@ -144,6 +149,16 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
                     secondary_dex_paths=secondary,
                 )
                 print("[anx] experimental console isolation via Bubblewrap", flush=True)
+            # The cgroup leaf is intentionally opt-in. The caller must arrange
+            # user-delegated memory/pids controllers; never mutate host policy.
+            cgroup_leaf = (cleanup.enter_context(delegated_cgroup(experimental_cgroup_parent))
+                           if experimental_cgroup_parent is not None else None)
+
+            def sandbox_child_setup() -> None:
+                apply_sandbox_resource_limits()
+                if cgroup_leaf is not None:
+                    join_cgroup(cgroup_leaf)
+
             # Keep the experimental helper's *own* host-side environment
             # minimal as well: bwrap --clearenv only resets its guest process.
             # Never forward an inherited host stdin (possibly a secret file
@@ -154,13 +169,12 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
                 command, env=launch_env, check=False,
                 close_fds=True,
                 stdin=subprocess.DEVNULL if experimental_sandbox else None,
-                # Linux-only single-threaded CLI: child limits must be active
-                # BEFORE bwrap starts, never on the parent process.
-                preexec_fn=(apply_sandbox_resource_limits
-                            if experimental_sandbox else None),
+                # The single-threaded CLI applies both rlimits and cgroup
+                # membership in the child before Bubblewrap can execute.
+                preexec_fn=sandbox_child_setup if experimental_sandbox else None,
             ).returncode
     except (OSError, subprocess.SubprocessError, NativeLibraryError,
-            SecondaryDexError, SandboxError) as exc:
+            SecondaryDexError, SandboxError, CgroupError) as exc:
         print(f"anx run: host execution setup failed: {exc}", file=sys.stderr)
         return 1
 
@@ -187,6 +201,11 @@ def main() -> int:
         action="store_true",
         help="attempt Bubblewrap console isolation; fails closed, not security-certified",
     )
+    run_parser.add_argument(
+        "--experimental-cgroup-parent", type=Path,
+        help="pre-delegated cgroup v2 parent for optional 512 MiB RAM / 64 PID "
+             "sandbox limits; requires --experimental-sandbox and fails closed",
+    )
     run_parser.add_argument("--wayland-binary",
                             help="path to compiled GTK4 Wayland host executable")
     argv = sys.argv[1:]
@@ -202,7 +221,7 @@ def main() -> int:
             return 1
     return _run(args.apk, args.art, args.framework_dex, args.android_data,
                 args.backend, args.wayland_binary, args.unsafe_host_execution,
-                args.experimental_sandbox)
+                args.experimental_sandbox, args.experimental_cgroup_parent)
 
 
 if __name__ == "__main__":
