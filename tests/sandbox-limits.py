@@ -66,7 +66,12 @@ print(json.dumps(limits))
             preexec_fn=restrict_then_apply,
             capture_output=True, text=True, check=True, timeout=10,
         )
-        self.assertEqual(child.stdout.strip(), "(32, 32)")
+        host_soft, host_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        expected = tuple(
+            min(32, x) if x != resource.RLIM_INFINITY else 32
+            for x in (host_soft, host_hard)
+        )
+        self.assertEqual(child.stdout.strip(), str(expected))
 
     def test_failed_limit_setup_does_not_execute_child(self):
         with mock.patch("sandbox.resource.setrlimit",
