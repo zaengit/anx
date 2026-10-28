@@ -84,7 +84,7 @@ def main() -> int:
         descendant_status = Path(f"/proc/{descendant_pid}/status")
         if descendant_status.exists():
             state = descendant_status.read_text(encoding="ascii")
-            if not any(line.startswith("State:") and "\\tZ " in line
+            if not any(line.startswith("State:") and line.split()[1] == "Z"
                        for line in state.splitlines()):
                 raise AssertionError("detached descendant still running after cgroup.kill")
     except (OSError, subprocess.SubprocessError, CgroupError, AssertionError) as exc:
