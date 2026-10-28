@@ -39,6 +39,11 @@ string/color/dimension/bool/integer resources and the GTK4 Wayland MVP also
 exist. These do not imply Bionic compatibility, Android system services,
 full `resources.arsc` configuration handling or general third-party APK support.
 Malformed archives and unsupported inputs fail with a targeted error.
+Before executing an APK, `anx run` also checks the primary `classes.dex`
+magic/version and rejects ZIP symlinks, truncated headers and unknown DEX
+versions with a controlled diagnostic **before starting ART**. `anx inspect`
+only checks ZIP structure and CRC, not whether DEX bytecode is valid.
+The preflight is not a bytecode verifier and does not make APK execution safe.
 
 The binary XML string-pool reader rejects truncated lengths, missing UTF-8
 and UTF-16 terminators, and string data overlapping its offset array.
