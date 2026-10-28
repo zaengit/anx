@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import signal
 import subprocess
+import time
 import sys
 import tempfile
 import unittest
@@ -77,6 +79,34 @@ class SandboxTimeoutTest(unittest.TestCase):
         pid = int(self.pid.read_text())
         with self.assertRaises(ProcessLookupError):
             os.kill(pid, 0)
+
+    def _assert_interrupted_cleanup(self, signum: int, expected: int) -> None:
+        self.helper_script(sleep=True)
+        with subprocess.Popen(
+            self.base + ["--experimental-sandbox"],
+            env=self.environment, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, text=True,
+        ) as launcher:
+            deadline = time.monotonic() + 8
+            while not self.pid.is_file() and time.monotonic() < deadline:
+                if launcher.poll() is not None:
+                    break
+                time.sleep(0.04)
+            self.assertTrue(self.pid.is_file(), "mock helper never started")
+            child_pid = int(self.pid.read_text())
+            os.kill(launcher.pid, signum)
+            stdout, stderr = launcher.communicate(timeout=10)
+            self.assertEqual(launcher.returncode, expected, stdout + stderr)
+        with self.assertRaises(ProcessLookupError):
+            os.kill(child_pid, 0)
+        self.assertEqual(self.counter.read_text().splitlines(), ["launched"])
+        self.assertIn("experimental sandbox interrupted by", stderr)
+
+    def test_sigterm_reaps_helper_without_unsandboxed_retry(self):
+        self._assert_interrupted_cleanup(signal.SIGTERM, 143)
+
+    def test_sigint_reaps_helper_without_unsandboxed_retry(self):
+        self._assert_interrupted_cleanup(signal.SIGINT, 130)
 
     def test_fast_helper_exit_preserved(self):
         self.helper_script(sleep=False)
