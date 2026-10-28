@@ -34,10 +34,31 @@ a stricter pre-existing host limit:
 A failure while applying any limit aborts the child *before* executing
 Bubblewrap. No unsandboxed retry occurs. The limits are intentionally fixed
 for this experimental profile and can reject otherwise valid large or
-long-running apps. They do **not** cap aggregate disk usage, resident memory,
-wall-clock time, the number of processes, network usage or I/O throughput.
+long-running apps. These kernel rlimits do **not** cap aggregate disk usage,
+resident memory, the number of processes, network usage or I/O throughput.
+A separate parent-enforced wall-clock deadline is described below.
 `RLIMIT_NOFILE` also does not replace a file-descriptor capability policy.
 Full cgroup deployment compatibility and hostile APK testing remain release blockers.
+
+## Wall-clock timeout for experimental sandbox
+
+All `--experimental-sandbox` launches now have a **300-second elapsed-time
+limit** by default, independent of the per-process `RLIMIT_CPU` budget.
+Adjust it to between 1 and 3600 seconds using
+`--sandbox-timeout-seconds 60` with `--experimental-sandbox`.
+The timeout option is rejected without the experimental sandbox; invalid
+values fail before launching Bubblewrap.
+
+When the deadline expires, Python's `subprocess.run(timeout=...)` kills
+and reaps the **direct Bubblewrap process**, reports the timeout on stderr
+and exits with status `124`. There is never an unsandboxed retry. If the
+optional delegated cgroup is active, leaving its context calls
+`cgroup.kill`, checks that it is empty and removes it; this also covers
+descendant processes. Without a delegated cgroup, Bubblewrap's
+`--die-with-parent` offers only partial containment. A detached child
+outside the Bubblewrap parent relationship is **not proven to be killed**
+by the parent timeout alone. This deadline is not an independent
+kernel-enforced containment boundary or a security certification.
 
 ## Optional delegated cgroup v2 (experimental)
 
@@ -69,8 +90,9 @@ cleanup step fails, ANX reports an error instead of retrying without limits.
 This is an **opt-in developer feature**, not a general host distribution
 profile. The baseline experimental Bubblewrap mode without
 `--experimental-cgroup-parent` does *not* gain RAM or aggregate task
-budgets. Even with cgroup v2 enabled, there is no wall-clock deadline,
-disk capacity quota, I/O rate limit, device mediation, seccomp policy,
+budgets. Even with cgroup v2 enabled, the parent-managed timeout is not a
+kernel wall-clock quota; there is still no disk capacity quota, I/O rate
+limit, device mediation, seccomp policy,
 hostile-APK safety certification, or multi-distribution verification.
 Linux systems with a read-only/non-delegated cgroup hierarchy reject
 the option as unsupported; do not disable security protections to run it.
@@ -119,8 +141,13 @@ membership, configured budgets, descendant killing and removal of the
 temporary leaf. This real-kernel test requires explicit developer setup and
 has **not** been run on GitHub's non-delegated default runner; the CI unit
 test cannot substitute for it.
+`python3 tests/sandbox-timeout-smoke.py` verifies that a hung fake
+Bubblewrap process is killed after one second with status `124`, only
+one launch occurs, invalid options are rejected and ordinary exit codes
+remain unchanged. The mocked cgroup unit test also verifies teardown
+after a timeout; these are not real hostile-descendant tests.
 The real `tests/sandbox-kernel.py`
-probe checks those budgets inside the Bubblewrap guest on the privileged
+probe checks kernel rlimits inside the Bubblewrap guest on the privileged
 CI runner. The helper test is not a kernel namespace isolation test.
 
 **The unit and fake-helper tests are structural/mock tests, not evidence

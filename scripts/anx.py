@@ -18,11 +18,14 @@ from secondary_dex import SecondaryDexError, extract_secondary_dex
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_FRAMEWORK_DEX = ROOT / "build" / "framework" / "classes.dex"
+DEFAULT_SANDBOX_TIMEOUT_SECONDS = 300
+MAX_SANDBOX_TIMEOUT_SECONDS = 3600
 
 
 def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
          backend: str, wayland_binary: str | None, unsafe_host_execution: bool,
-         experimental_sandbox: bool, experimental_cgroup_parent: Path | None) -> int:
+         experimental_sandbox: bool, experimental_cgroup_parent: Path | None,
+         sandbox_timeout_seconds: int | None) -> int:
     try:
         metadata = inspect_apk(apk)
     except ApkError as exc:
@@ -83,6 +86,15 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
                             and resolved_native else "console")
         if selected_backend == "console":
             print("[anx] no compiled Wayland backend/session; using console backend", flush=True)
+    if sandbox_timeout_seconds is not None:
+        if not experimental_sandbox:
+            print("anx run: --sandbox-timeout-seconds requires --experimental-sandbox",
+                  file=sys.stderr)
+            return 2
+        if not 1 <= sandbox_timeout_seconds <= MAX_SANDBOX_TIMEOUT_SECONDS:
+            print("anx run: --sandbox-timeout-seconds must be between 1 and "
+                  f"{MAX_SANDBOX_TIMEOUT_SECONDS}", file=sys.stderr)
+            return 2
     if experimental_cgroup_parent is not None and not experimental_sandbox:
         print("anx run: --experimental-cgroup-parent requires --experimental-sandbox",
               file=sys.stderr)
@@ -165,14 +177,28 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
             # or terminal) to APK code. Keep stdout/stderr for console output.
             launch_env = ({"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
                           if experimental_sandbox else environment)
-            return subprocess.run(
-                command, env=launch_env, check=False,
-                close_fds=True,
-                stdin=subprocess.DEVNULL if experimental_sandbox else None,
-                # The single-threaded CLI applies both rlimits and cgroup
-                # membership in the child before Bubblewrap can execute.
-                preexec_fn=sandbox_child_setup if experimental_sandbox else None,
-            ).returncode
+            timeout_seconds = ((sandbox_timeout_seconds
+                                if sandbox_timeout_seconds is not None
+                                else DEFAULT_SANDBOX_TIMEOUT_SECONDS)
+                               if experimental_sandbox else None)
+            try:
+                return subprocess.run(
+                    command, env=launch_env, check=False,
+                    close_fds=True,
+                    stdin=subprocess.DEVNULL if experimental_sandbox else None,
+                    # The single-threaded CLI applies both rlimits and cgroup
+                    # membership in the child before Bubblewrap can execute.
+                    preexec_fn=sandbox_child_setup if experimental_sandbox else None,
+                    timeout=timeout_seconds,
+                ).returncode
+            except subprocess.TimeoutExpired:
+                # subprocess.run kills and reaps the direct bwrap process. The
+                # ExitStack then kills *all* descendants when delegated cgroup
+                # v2 is active. Without cgroup, --die-with-parent is only a
+                # partial defense; detached descendants are not guaranteed gone.
+                print(f"anx run: experimental sandbox exceeded wall-clock "
+                      f"timeout of {timeout_seconds}s", file=sys.stderr)
+                return 124
     except (OSError, subprocess.SubprocessError, NativeLibraryError,
             SecondaryDexError, SandboxError, CgroupError) as exc:
         print(f"anx run: host execution setup failed: {exc}", file=sys.stderr)
@@ -206,6 +232,11 @@ def main() -> int:
         help="pre-delegated cgroup v2 parent for optional 512 MiB RAM / 64 PID "
              "sandbox limits; requires --experimental-sandbox and fails closed",
     )
+    run_parser.add_argument(
+        "--sandbox-timeout-seconds", type=int,
+        help="experimental sandbox wall-clock limit (default 300s; "
+             "valid 1-3600s); timeout returns exit status 124",
+    )
     run_parser.add_argument("--wayland-binary",
                             help="path to compiled GTK4 Wayland host executable")
     argv = sys.argv[1:]
@@ -221,7 +252,8 @@ def main() -> int:
             return 1
     return _run(args.apk, args.art, args.framework_dex, args.android_data,
                 args.backend, args.wayland_binary, args.unsafe_host_execution,
-                args.experimental_sandbox, args.experimental_cgroup_parent)
+                args.experimental_sandbox, args.experimental_cgroup_parent,
+                args.sandbox_timeout_seconds)
 
 
 if __name__ == "__main__":

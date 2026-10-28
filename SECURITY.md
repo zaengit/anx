@@ -54,7 +54,11 @@ running untrusted APKs. The experimental child also inherits fixed Linux
 restrictions. An **additional opt-in** delegated cgroup v2 profile can cap
 memory at 512 MiB and tasks (including threads) at 64, but requires an
 already-delegated writable parent and has no unconfined fallback. The default
-console sandbox does **not** enable this cgroup feature. Neither profile
-controls wall time or total-disk usage. CI verifies
+console sandbox does **not** enable this cgroup feature. Both
+experimental sandbox variants now have a parent-managed 300-second
+wall-clock timeout by default (configurable 1–3600 seconds); hitting it
+returns status 124 and kills the direct Bubblewrap helper. **Only the opt-in
+cgroup variant also requests kernel termination of remaining descendants**
+via `cgroup.kill`. Neither variant caps total disk usage. CI verifies
 argument policy, fail-closed behavior and scoped kernel probes. It does
 **not** certify resistance to hostile APKs or broad Linux compatibility.
