@@ -144,7 +144,17 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
                     secondary_dex_paths=secondary,
                 )
                 print("[anx] experimental console isolation via Bubblewrap", flush=True)
-            return subprocess.run(command, env=environment, check=False).returncode
+            # Keep the experimental helper's *own* host-side environment
+            # minimal as well: bwrap --clearenv only resets its guest process.
+            # Never forward an inherited host stdin (possibly a secret file
+            # or terminal) to APK code. Keep stdout/stderr for console output.
+            launch_env = ({"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
+                          if experimental_sandbox else environment)
+            return subprocess.run(
+                command, env=launch_env, check=False,
+                close_fds=True,
+                stdin=subprocess.DEVNULL if experimental_sandbox else None,
+            ).returncode
     except (OSError, NativeLibraryError, SecondaryDexError, SandboxError) as exc:
         print(f"anx run: host execution setup failed: {exc}", file=sys.stderr)
         return 1
