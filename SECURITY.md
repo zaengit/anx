@@ -51,6 +51,10 @@ This is a **development-only, unreviewed profile** and not grounds for
 running untrusted APKs. The experimental child also inherits fixed Linux
 `RLIMIT_CPU`, `RLIMIT_NOFILE`, `RLIMIT_FSIZE` and `RLIMIT_CORE` budgets
 ([details](docs/sandbox-experimental.md)); these are partial per-process
-restrictions, **not** memory, wall-time or total-disk quotas. CI verifies
+restrictions. An **additional opt-in** delegated cgroup v2 profile can cap
+memory at 512 MiB and tasks (including threads) at 64, but requires an
+already-delegated writable parent and has no unconfined fallback. The default
+console sandbox does **not** enable this cgroup feature. Neither profile
+controls wall time or total-disk usage. CI verifies
 argument policy, fail-closed behavior and scoped kernel probes. It does
 **not** certify resistance to hostile APKs or broad Linux compatibility.

@@ -47,6 +47,9 @@ jobs:
       - name: Verify kernel rlimits for experimental sandbox children
         run: python3 tests/sandbox-limits.py
 
+      - name: Validate opt-in cgroup v2 quotas and fail-closed cleanup (mock kernel)
+        run: python3 tests/cgroup-unit.py
+
       - name: Test secondary DEX extraction guards
         run: python3 tests/secondary-dex-unit.py
 
