@@ -10,7 +10,7 @@ import zipfile
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 from apk_inspector import ApkMetadata
 from apk_manifest import ManifestInfo
-from secondary_dex import SecondaryDexError, extract_secondary_dex
+from secondary_dex import SecondaryDexError, extract_secondary_dex, validate_primary_dex
 
 
 class SecondaryDexTest(unittest.TestCase):
@@ -37,6 +37,36 @@ class SecondaryDexTest(unittest.TestCase):
                 output.writestr(entry, payload)
             else:
                 output.writestr(filename, payload)
+
+    def test_valid_primary_dex_header(self):
+        for version in (b"035", b"041", b"042"):
+            with self.subTest(version=version):
+                with zipfile.ZipFile(self.apk, "w") as output:
+                    output.writestr("classes.dex", b"dex\n" + version + b"\x00fixture")
+                validate_primary_dex(self.metadata(count=1))
+
+    def test_invalid_primary_dex_header(self):
+        for payload in (b"not-a-dex", b"dex\n099\x00fixture", b"dex\n035"):
+            with self.subTest(payload=payload):
+                with zipfile.ZipFile(self.apk, "w") as output:
+                    output.writestr("classes.dex", payload)
+                with self.assertRaisesRegex(SecondaryDexError, "primary DEX"):
+                    validate_primary_dex(self.metadata(count=1))
+
+    def test_primary_dex_symlink_rejected(self):
+        with zipfile.ZipFile(self.apk, "w") as output:
+            entry = zipfile.ZipInfo("classes.dex")
+            entry.create_system = 3
+            entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+            output.writestr(entry, b"dex\n035\x00fixture")
+        with self.assertRaisesRegex(SecondaryDexError, "not a regular file"):
+            validate_primary_dex(self.metadata(count=1))
+
+    def test_primary_dex_missing_entry_has_controlled_error(self):
+        with zipfile.ZipFile(self.apk, "w") as output:
+            output.writestr("other.txt", "fixture")
+        with self.assertRaisesRegex(SecondaryDexError, "primary DEX validation failed"):
+            validate_primary_dex(self.metadata(count=1))
 
     def test_valid_secondary_dex_and_readonly_mode(self):
         self.pack()
