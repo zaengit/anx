@@ -57,8 +57,12 @@ already-delegated writable parent and has no unconfined fallback. The default
 console sandbox does **not** enable this cgroup feature. Both
 experimental sandbox variants now have a parent-managed 300-second
 wall-clock timeout by default (configurable 1–3600 seconds); hitting it
-returns status 124 and kills the direct Bubblewrap helper. **Only the opt-in
-cgroup variant also requests kernel termination of remaining descendants**
-via `cgroup.kill`. Neither variant caps total disk usage. CI verifies
+returns status 124 and kills the direct Bubblewrap helper. SIGTERM and
+SIGINT during supervised execution likewise reap that helper and return 143
+or 130 while unwinding cleanup. **Only the opt-in cgroup variant also requests
+kernel termination of remaining descendants** via `cgroup.kill`.
+Uncatchable SIGKILL, sudden host failure and independently detached processes
+outside that cgroup remain limitations. Neither variant caps total disk
+usage. CI verifies
 argument policy, fail-closed behavior and scoped kernel probes. It does
 **not** certify resistance to hostile APKs or broad Linux compatibility.
