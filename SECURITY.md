@@ -20,7 +20,7 @@ For tests using a known, trusted APK:
 
 ```bash
 ./anx inspect build/demo.apk
-./anx build/demo.apk --unsafe-host-execution --art /path/to/dalvikvm64
+./anx run build/demo.apk --unsafe-host-execution --art /path/to/dalvikvm64
 ```
 
 ## Required before untrusted APK support (M8)
@@ -48,5 +48,9 @@ and no host network. It refuses to run if the required helper/permissions
 are missing. See [docs/sandbox-experimental.md](docs/sandbox-experimental.md).
 
 This is a **development-only, unreviewed profile** and not grounds for
-running untrusted APKs. CI verifies argv policy and fail-closed behavior;
-it does **not** certify actual kernel isolation or resistance to attacks.
+running untrusted APKs. The experimental child also inherits fixed Linux
+`RLIMIT_CPU`, `RLIMIT_NOFILE`, `RLIMIT_FSIZE` and `RLIMIT_CORE` budgets
+([details](docs/sandbox-experimental.md)); these are partial per-process
+restrictions, **not** memory, wall-time or total-disk quotas. CI verifies
+argument policy, fail-closed behavior and scoped kernel probes. It does
+**not** certify resistance to hostile APKs or broad Linux compatibility.
