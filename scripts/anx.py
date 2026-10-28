@@ -14,7 +14,7 @@ from cgroup_v2 import CgroupError, delegated_cgroup, join_cgroup
 from native_libraries import NativeLibraryError, extract_native_libraries
 from sandbox import SandboxError, apply_sandbox_resource_limits, wrap_console_art
 from sandbox_supervisor import SandboxSignals, run_sandbox_helper
-from secondary_dex import SecondaryDexError, extract_secondary_dex
+from secondary_dex import SecondaryDexError, extract_secondary_dex, validate_primary_dex
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -53,6 +53,11 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
     if not framework_dex.is_file():
         print(f"anx run: framework DEX not found: {framework_dex}", file=sys.stderr)
         print("Build the reference runtime with: bash scripts/build-demo-apk.sh", file=sys.stderr)
+        return 1
+    try:
+        validate_primary_dex(metadata)
+    except SecondaryDexError as exc:
+        print(f"anx run: {exc}", file=sys.stderr)
         return 1
 
     executable = shutil.which(art)
