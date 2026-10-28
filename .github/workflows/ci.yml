@@ -62,6 +62,9 @@ jobs:
       - name: Verify sandbox cannot fall back to unrestricted ART
         run: bash tests/sandbox-smoke.sh
 
+      - name: Verify sandbox helper drops host environment and file descriptors
+        run: python3 tests/sandbox-launcher-smoke.py
+
   wayland-backend:
     name: Native Wayland compile and headless GUI smoke
     runs-on: ubuntu-24.04
