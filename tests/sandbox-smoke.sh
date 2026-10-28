@@ -5,8 +5,13 @@ cd "$ROOT"
 mkdir -p build/sandbox-mock
 cat > build/sandbox-mock/bwrap <<'MOCK'
 #!/bin/sh
-: "${ANX_BWRAP_TRACE:?}"
-printf '%s\n' "$@" > "$ANX_BWRAP_TRACE"
+# The sandbox helper must not receive the host trace variable.
+if [ -n "$ANX_BWRAP_TRACE" ]; then
+    echo '[FAIL] Bubblewrap helper inherited host environment' >&2
+    exit 88
+fi
+# Mock-relative trace path avoids intentionally reintroducing host variables.
+printf '%s\n' "$@" > "$(dirname "$0")/../sandbox-options.txt"
 exit 42
 MOCK
 chmod +x build/sandbox-mock/bwrap
