@@ -32,6 +32,9 @@ print('ANX_CGROUP_KERNEL_OK', flush=True)
 pid = os.fork()
 if pid == 0:
     os.setsid()
+    # Avoid holding the probe's captured stdout/stderr pipes open.
+    os.close(1)
+    os.close(2)
     import time
     time.sleep(60)
     os._exit(0)
