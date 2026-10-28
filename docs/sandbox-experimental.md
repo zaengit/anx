@@ -158,13 +158,26 @@ Linux host with sufficient headroom.
 
 CI runs `python3 tests/cgroup-probe-unit.py` to ensure fake event counters,
 missing thread denials, and absent OOM kills cannot generate false success.
-For a runner with an appropriate *pre-delegated* parent, configure the
-repository variable `ANX_CGROUP_TEST_PARENT` to its host path; the
-sandbox-kernel job then runs the **real** stress probe and fails if either
-controller is not demonstrably enforced. Without this configuration, CI
-prints an explicit *not tested* notice. GitHub's default hosted runner
-has **not** supplied such delegated parent, so green general CI alone is
-still **not** evidence of real cgroup memory/pids enforcement.
+The Linux CI kernel job also **attempts** an automatic *privileged,
+CI-only* real probe using a disposable `systemd-run` transient service
+with `Delegate=yes`. Inside that service, `tests/cgroup-systemd-ci.py`
+verifies that it belongs to a fresh ANX-named service, moves its *own*
+process into a manager leaf, enables `memory` and `pids` only in
+that transient subtree, and invokes the real `tests/cgroup-kernel.py`
+enforcement probe. It must never enable controllers in the host root or
+other applications' groups. Failed controller enforcement is a **CI failure**;
+unavailable systemd/delegation prints an explicit **NOT TESTED** notice, not
+a false success. This test runs privileged and cannot establish
+**unprivileged** distro compatibility. The tests intentionally create a
+short-lived OOM *inside* the disposable private test cgroup.
+
+Separately, for a runner with an existing *pre-delegated* parent, configure
+the repository variable `ANX_CGROUP_TEST_PARENT` to its host path; the
+sandbox-kernel job runs the same real stress probe as the current runner
+and fails if controllers are not demonstrably enforced. Otherwise, that
+manual integration prints **NOT TESTED**. Passing ordinary CI without an
+explicit `[PASS] Real kernel delegated cgroup` output is **not** proof of
+real cgroup enforcement on a target distro.
 `python3 tests/sandbox-timeout-smoke.py` verifies that a hung fake
 Bubblewrap process is killed after one second with status `124`, only
 one launch occurs, invalid options are rejected and ordinary exit codes
