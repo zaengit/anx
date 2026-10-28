@@ -113,6 +113,12 @@ controller delegation, private leaf setup, join errors, forced failures and
 cleanup using a **mock cgroup filesystem**; it does not prove real kernel
 memory/process enforcement. `tests/sandbox-launcher-smoke.py` also checks
 that the CLI rejects an unavailable cgroup rather than launching Bubblewrap.
+On a machine with an **actually delegated** cgroup parent, run
+`python3 tests/cgroup-kernel.py "$CGROUP_PARENT"` to validate real kernel
+membership, configured budgets, descendant killing and removal of the
+temporary leaf. This real-kernel test requires explicit developer setup and
+has **not** been run on GitHub's non-delegated default runner; the CI unit
+test cannot substitute for it.
 The real `tests/sandbox-kernel.py`
 probe checks those budgets inside the Bubblewrap guest on the privileged
 CI runner. The helper test is not a kernel namespace isolation test.
