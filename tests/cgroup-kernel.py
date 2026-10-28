@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import os
+import re
 import subprocess
 import sys
 
@@ -65,11 +66,27 @@ def main() -> int:
                     "kernel child failed to verify cgroup membership/limits: "
                     + probe.stdout + " " + probe.stderr
                 )
-            if "DESCENDANT=" not in probe.stdout:
-                raise AssertionError("descendant process was not created")
+            match = re.search(r"^DESCENDANT=([0-9]+)$", probe.stdout, re.MULTILINE)
+            if match is None:
+                raise AssertionError("detached descendant process was not created")
+            descendant_pid = int(match.group(1))
+            descendant_proc = Path(f"/proc/{descendant_pid}")
+            member = (descendant_proc / "cgroup").read_text(encoding="ascii")
+            if not any(line.endswith("/" + leaf.name) for line in member.splitlines()):
+                raise AssertionError("detached descendant escaped the target cgroup")
+            state = (descendant_proc / "status").read_text(encoding="ascii")
+            if any(line.startswith("State:") and "Z (zombie)" in line
+                   for line in state.splitlines()):
+                raise AssertionError("detached descendant exited before cleanup")
             print(probe.stdout.strip())
         if leaf.exists():
             raise AssertionError("private cgroup persisted after cleanup")
+        descendant_status = Path(f"/proc/{descendant_pid}/status")
+        if descendant_status.exists():
+            state = descendant_status.read_text(encoding="ascii")
+            if not any(line.startswith("State:") and "\\tZ " in line
+                       for line in state.splitlines()):
+                raise AssertionError("detached descendant still running after cgroup.kill")
     except (OSError, subprocess.SubprocessError, CgroupError, AssertionError) as exc:
         print(f"[FAIL] Real cgroup kernel probe: {exc}", file=sys.stderr)
         return 1
