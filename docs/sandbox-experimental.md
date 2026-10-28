@@ -46,8 +46,8 @@ with `memory` and `pids` enabled in `cgroup.subtree_control`, ANX can
 add a second, **explicitly requested** resource gate:
 
 ```sh
-./anx run build/demo.apk --art /usr/bin/dalvikvm64 \\
-    --backend console --unsafe-host-execution --experimental-sandbox \\
+./anx run build/demo.apk --art /usr/bin/dalvikvm64 \
+    --backend console --unsafe-host-execution --experimental-sandbox \
     --experimental-cgroup-parent "$CGROUP_PARENT"
 ```
 
