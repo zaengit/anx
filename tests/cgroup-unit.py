@@ -27,13 +27,14 @@ class DelegatedCgroupTest(unittest.TestCase):
         (self.parent / "cgroup.procs").write_text("")
         self.real_mkdir = os.mkdir
         self.real_rmdir = os.rmdir
+        self.real_write_text = Path.write_text
 
     def fake_mkdir(self, path, mode=0o777):
         self.real_mkdir(path, mode)
         directory = Path(path)
         for file in ("memory.max", "pids.max", "cgroup.procs", "cgroup.kill"):
-            (directory / file).write_text("")
-        (directory / "cgroup.events").write_text("populated 0\n")
+            self.real_write_text(directory / file, "")
+        self.real_write_text(directory / "cgroup.events", "populated 0\n")
 
     def fake_rmdir(self, path):
         for entry in Path(path).iterdir():
