@@ -8,8 +8,14 @@ the framework DEX and APK at `/anx/`. Only a **single validated package's**
 ART cache and app-data directories are mounted writable at `/anx/data`
 and `/anx/apps/<package>`, respectively. Other ANX packages' data
 directories are not mounted. The host home, `/etc`, other working directories, the
-host `/run` and Wayland sockets are not mounted by the profile. Inherited
-environment variables are cleared before launching ART.
+host `/run` and Wayland sockets are not mounted by the profile. The
+Bubblewrap helper itself receives only a fixed `PATH` and `LANG` (rather than
+the invoking shell's environment); `--clearenv` then supplies only the listed
+guest variables to ART. ANX launches Bubblewrap with `close_fds=True` and
+`stdin=/dev/null`, preventing host input streams and inherited nonstandard
+file descriptors from reaching the child. **stdout/stderr remain connected to
+the invoking terminal or redirection targets** for console diagnostics; they
+are not a private logging boundary.
 
 ```sh
 sudo apt install bubblewrap
@@ -38,6 +44,10 @@ sandbox; never run untrusted APKs.
 `python3 tests/sandbox-unit.py` checks bind policy and negative cases.
 `bash tests/sandbox-smoke.sh` checks a fake Bubblewrap backend's received
 arguments and proves that failed isolation never retries ART unsandboxed.
+`python3 tests/sandbox-launcher-smoke.py` exercises the **real ANX CLI**
+against a fake Bubblewrap helper while injecting a secret environment
+variable, a host stdin file and a deliberately inheritable file descriptor.
+It confirms all three are absent in the helper. It is not a kernel sandbox test.
 
 **The unit and fake-helper tests are structural/mock tests, not evidence
 that the kernel namespaces work on a target distro.** Successful runtime kernel isolation,
@@ -62,5 +72,5 @@ A separate **sudo/root CI-only probe** checks the actual kernel namespace
 and filesystem policy with sufficient setup permissions. A root CI success
 must not be represented as unprivileged Linux compatibility. Passing this probe would
 support this specific profile on that CI runner, but **does not certify** a
-complete sandbox (e.g. seccomp, inherited FDs, devices, TOCTOU, escapes,
+complete sandbox (e.g. inherited stdout/stderr, seccomp, devices, TOCTOU, escapes,
 third-party audits, and other distros are not covered).
