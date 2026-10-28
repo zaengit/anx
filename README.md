@@ -95,19 +95,21 @@ bash scripts/build-demo-apk.sh
 The loader passes the manifest package/Application name and APK path to the Java
 host, so application callbacks and read-only `assets/` lookup can work in the
 supported subset. It drains ready main-thread callbacks once before displaying the console view.
-The experimental GUI backend waits for native click/close events, but it does
-not yet offer Android-compatible continuous Looper timing or background tasks.
-The current loader handles one DEX file and APKs without native libraries. It
-does not yet load Android resources, multidex, JNI, Binder services, or Google
-Play Services. ART must be installed with its runtime libraries, bootclasspath,
-and data files.
+The experimental GUI backend handles native click/close events and a limited
+`Handler.postDelayed()` callback loop while its window is open. It does not
+emulate the full Android UI thread or system scheduler.
+The loader supports bounded contiguous secondary DEX entries, a narrow subset
+of compiled resource IDs/XML layouts, and an experimental x86_64
+**Linux-host-built** JNI library path. Android NDK/Bionic libraries, broader
+Android resources, Binder services, and Google Play Services remain unsupported.
+ART must be installed with its runtime libraries, bootclasspath, and data files.
 
 ## Official Android SDK ABI regression
 
 ```sh
 bash scripts/build-external-apk.sh
 ./anx inspect build/external.apk
-./anx build/external.apk --unsafe-host-execution --art /path/to/dalvikvm64
+./anx run build/external.apk --unsafe-host-execution --art /path/to/dalvikvm64
 ```
 
 The `tests/fixtures/external-app` fixture is compiled solely against the
@@ -123,7 +125,7 @@ regression fixture, **not** evidence that arbitrary external Android apps work.
 # Ubuntu: sudo apt install libgtk-4-dev pkg-config build-essential
 bash scripts/build-wayland.sh
 bash scripts/build-demo-apk.sh
-./anx build/demo.apk --art /path/to/dalvikvm64 --unsafe-host-execution --backend wayland
+./anx run build/demo.apk --art /path/to/dalvikvm64 --unsafe-host-execution --backend wayland
 bash tests/gui-protocol-smoke.sh
 ```
 
@@ -136,13 +138,17 @@ See [docs/wayland-backend.md](docs/wayland-backend.md) for limitations and tests
 ## Next milestones and safety
 
 M3's lifecycle subset is validated on pinned ART. M4's native GTK4 Wayland
-client and the host bridge pass compositor-headless and ART/mock-protocol
-tests respectively. The fully integrated **ART + GTK4 visual click** remains
-unverified, so **M5/v0.1 MVP is not complete**.
+client and the host bridge pass compositor-headless integration tests.
+Pinned ART + official-SDK-compiled APK + GTK4 under headless Sway also handles
+a real **compositor-injected virtual pointer** click and repaints a TextView
+([PR #29](https://github.com/zaengit/anx/pull/29)). A physical desktop
+mouse, ordinary desktop session, focus/resize and screen-visible repaint
+are **not yet verified**; M5/v0.1's broader acceptance gate remains open.
 
 Track the remaining development in [STATUS.md](STATUS.md) and [M4–M8 issues](https://github.com/zaengit/anx/issues).
-There is **no sandbox**: only run APKs you trust. APK metadata validation
-does not isolate executable code from the Linux host.
+There is **no security-certified APK sandbox**: only run APKs you trust.
+The optional fail-closed Bubblewrap profile is experimental and console-only.
+APK metadata validation does not isolate executable code from the Linux host.
 
 ## Architecture decisions
 
