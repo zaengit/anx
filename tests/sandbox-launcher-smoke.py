@@ -78,6 +78,28 @@ def main() -> int:
                     pass_fds=(inherited_fd,),
                     check=False,
                 )
+            # No delegation: must refuse before executing even the fake helper.
+            missing_parent = root / "no-delegation"
+            base = [sys.executable, str(ROOT / "scripts" / "anx.py"),
+                    "run", str(apk), "--art", "/usr/bin/true",
+                    "--framework-dex", str(framework),
+                    "--backend", "console", "--unsafe-host-execution"]
+            denied = subprocess.run(
+                base + ["--experimental-sandbox", "--experimental-cgroup-parent",
+                        str(missing_parent)],
+                env=environment, capture_output=True, text=True, timeout=25,
+                check=False,
+            )
+            if denied.returncode != 1 or "cannot allocate delegated cgroup" not in denied.stderr:
+                raise AssertionError("cgroup setup failure did not fail closed: "
+                                     + denied.stderr)
+            no_sandbox = subprocess.run(
+                base + ["--experimental-cgroup-parent", str(missing_parent)],
+                env=environment, capture_output=True, text=True, timeout=25,
+                check=False,
+            )
+            if no_sandbox.returncode != 2 or "requires --experimental-sandbox" not in no_sandbox.stderr:
+                raise AssertionError("cgroup-only flag unexpectedly permitted execution")
         finally:
             os.close(inherited_fd)
 
