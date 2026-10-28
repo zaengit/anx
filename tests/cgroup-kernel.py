@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 import os
 import re
+import signal
 import subprocess
 import sys
 
@@ -41,6 +42,113 @@ if pid == 0:
     os._exit(0)
 print('DESCENDANT=' + str(pid), flush=True)
 """
+
+
+# The stress tests deliberately LOWER the limits in their *own*, separate
+# short-lived leaf groups. No controls outside ANX's private leaves are changed.
+PIDS_STRESS_MAX = 8
+MEMORY_STRESS_MAX = 64 * 1024 * 1024
+
+PIDS_GUEST = r"""
+import os
+from pathlib import Path
+import sys
+import threading
+
+leaf = Path(sys.argv[1])
+assert Path("/proc/self/cgroup").read_text().strip().endswith("/" + leaf.name)
+gate = threading.Event()
+threads = []
+blocked = False
+try:
+    for _ in range(16):
+        thread = threading.Thread(target=gate.wait)
+        try:
+            thread.start()
+        except RuntimeError as exc:
+            if "can't start new thread" not in str(exc):
+                raise
+            blocked = True
+            break
+        threads.append(thread)
+finally:
+    gate.set()
+    for thread in threads:
+        thread.join()
+assert blocked, "pids.max did not reject excess threads"
+print("ANX_PIDS_DENIED", flush=True)
+"""
+
+MEMORY_GUEST = r"""
+from pathlib import Path
+import sys
+
+leaf = Path(sys.argv[1])
+assert Path("/proc/self/cgroup").read_text().strip().endswith("/" + leaf.name)
+print("ANX_MEMORY_STARTED", flush=True)
+# 128 MiB resident demand in a *private leaf capped at 64 MiB*. Failure
+# to OOM-kill this process is a failed isolation check, never success.
+data = bytearray(128 * 1024 * 1024)
+for index in range(0, len(data), 4096):
+    data[index] = 1
+print("ANX_MEMORY_UNBOUNDED", flush=True)
+"""
+
+
+def _event_count(path: Path, counter: str) -> int:
+    for line in path.read_text(encoding="ascii").splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[0] == counter:
+            return int(parts[1])
+    raise AssertionError(f"missing cgroup event counter {counter} in {path}")
+
+
+def _run_in_leaf(leaf: Path, script: str, timeout: int = 15) -> subprocess.CompletedProcess:
+    def setup() -> None:
+        apply_sandbox_resource_limits()
+        join_cgroup(leaf)
+
+    return subprocess.run(
+        [sys.executable, "-c", script, str(leaf)],
+        preexec_fn=setup, capture_output=True, text=True,
+        check=False, timeout=timeout,
+    )
+
+
+def verify_pids_enforcement(leaf: Path) -> None:
+    limit = leaf / "pids.max"
+    limit.write_text(str(PIDS_STRESS_MAX), encoding="ascii")
+    if limit.read_text(encoding="ascii").strip() != str(PIDS_STRESS_MAX):
+        raise AssertionError("kernel did not accept stress-test pids.max")
+    events = leaf / "pids.events"
+    before = _event_count(events, "max")
+    child = _run_in_leaf(leaf, PIDS_GUEST)
+    after = _event_count(events, "max")
+    if (child.returncode != 0 or "ANX_PIDS_DENIED" not in child.stdout
+            or after <= before):
+        raise AssertionError(
+            f"kernel pids.max not confirmed (code={child.returncode}, "
+            f"events {before}->{after}): {child.stdout} {child.stderr}"
+        )
+
+
+def verify_memory_enforcement(leaf: Path) -> None:
+    limit = leaf / "memory.max"
+    limit.write_text(str(MEMORY_STRESS_MAX), encoding="ascii")
+    if limit.read_text(encoding="ascii").strip() != str(MEMORY_STRESS_MAX):
+        raise AssertionError("kernel did not accept stress-test memory.max")
+    events = leaf / "memory.events"
+    before = _event_count(events, "oom_kill")
+    child = _run_in_leaf(leaf, MEMORY_GUEST)
+    after = _event_count(events, "oom_kill")
+    if (child.returncode != -signal.SIGKILL
+            or "ANX_MEMORY_STARTED" not in child.stdout
+            or after <= before):
+        raise AssertionError(
+            f"kernel memory.max OOM kill not confirmed (code={child.returncode}, "
+            f"events {before}->{after}): {child.stdout} {child.stderr}"
+        )
+
 
 
 def main() -> int:
@@ -87,12 +195,21 @@ def main() -> int:
             if not any(line.startswith("State:") and line.split()[1] == "Z"
                        for line in state.splitlines()):
                 raise AssertionError("detached descendant still running after cgroup.kill")
-    except (OSError, subprocess.SubprocessError, CgroupError, AssertionError) as exc:
+        # Independent real-kernel enforcement checks. Each creates a new
+        # limited leaf; failed controller enforcement is a failing probe.
+        with delegated_cgroup(parent) as pid_leaf:
+            verify_pids_enforcement(pid_leaf)
+        print("ANX_PIDS_KERNEL_OK", flush=True)
+        with delegated_cgroup(parent) as memory_leaf:
+            verify_memory_enforcement(memory_leaf)
+        print("ANX_MEMORY_KERNEL_OK", flush=True)
+    except (OSError, ValueError, subprocess.SubprocessError, CgroupError,
+            AssertionError) as exc:
         print(f"[FAIL] Real cgroup kernel probe: {exc}", file=sys.stderr)
         return 1
 
-    print("[PASS] Real cgroup: child membership, limit files, descendant "
-          "reaping and private leaf removal.")
+    print("[PASS] Real cgroup: membership, detached-child teardown, "
+          "kernel-enforced pids.max and memory.max.")
     return 0
 
 
