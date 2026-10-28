@@ -123,6 +123,8 @@ jobs:
           fi
       - name: Verify actual namespaces under privileged CI probe
         run: sudo -n python3 tests/sandbox-kernel.py
+      - name: Attempt real cgroup v2 enforcement in disposable systemd delegated service
+        run: bash tests/cgroup-systemd-ci.sh
       - name: Run delegated cgroup stress probe only when explicitly configured
         env:
           ANX_CGROUP_TEST_PARENT: ${{ vars.ANX_CGROUP_TEST_PARENT }}
