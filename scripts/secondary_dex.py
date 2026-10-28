@@ -21,6 +21,37 @@ class SecondaryDexError(ValueError):
     """Invalid or unsupported secondary DEX for host execution."""
 
 
+def _is_supported_dex_header(prefix: bytes) -> bool:
+    return (len(prefix) == 8 and prefix[:4] == b"dex\n"
+            and prefix[4:7] in (b"035", b"037", b"038", b"039", b"040", b"041", b"042")
+            and prefix[7] == 0)
+
+
+def validate_primary_dex(metadata: ApkMetadata) -> None:
+    """Reject malformed primary DEX before host ART executes any APK code.
+
+    Inspection remains metadata-only; this is not a DEX bytecode verifier or
+    a substitute for isolating untrusted applications.
+    """
+    if not metadata.dex_files or metadata.dex_files[0] != "classes.dex":
+        raise SecondaryDexError("APK contains no classes.dex")
+    try:
+        with zipfile.ZipFile(metadata.path, "r") as archive:
+            info = archive.getinfo("classes.dex")
+            mode = (info.external_attr >> 16) & 0xFFFF
+            if stat.S_IFMT(mode) not in (0, stat.S_IFREG):
+                raise SecondaryDexError("primary DEX is not a regular file: classes.dex")
+            if info.file_size < 8:
+                raise SecondaryDexError("primary DEX is too short: classes.dex")
+            with archive.open(info) as stream:
+                if not _is_supported_dex_header(stream.read(8)):
+                    raise SecondaryDexError("primary DEX header is invalid: classes.dex")
+    except SecondaryDexError:
+        raise
+    except (OSError, ValueError, RuntimeError, zipfile.BadZipFile, EOFError, KeyError) as exc:
+        raise SecondaryDexError(f"primary DEX validation failed: {exc}") from exc
+
+
 def extract_secondary_dex(metadata: ApkMetadata, destination: Path) -> tuple[Path, ...]:
     secondary = metadata.dex_files[1:]
     if not secondary:
@@ -53,10 +84,7 @@ def extract_secondary_dex(metadata: ApkMetadata, destination: Path) -> tuple[Pat
                 try:
                     with os.fdopen(descriptor, "wb") as output, archive.open(info) as source:
                         prefix = source.read(8)
-                        if (len(prefix) != 8 or prefix[:4] != b"dex\n"
-                                or prefix[4:7] not in
-                                (b"035", b"037", b"038", b"039", b"040", b"041", b"042")
-                                or prefix[7] != 0):
+                        if not _is_supported_dex_header(prefix):
                             raise SecondaryDexError(f"secondary DEX header is invalid: {name}")
                         output.write(prefix)
                         count = 8
