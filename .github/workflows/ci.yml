@@ -44,6 +44,9 @@ jobs:
       - name: Test fail-closed Bubblewrap command construction
         run: python3 tests/sandbox-unit.py
 
+      - name: Verify kernel rlimits for experimental sandbox children
+        run: python3 tests/sandbox-limits.py
+
       - name: Test secondary DEX extraction guards
         run: python3 tests/secondary-dex-unit.py
 
