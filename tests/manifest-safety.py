@@ -36,15 +36,15 @@ class BinaryManifestSafetyTest(unittest.TestCase):
                 + struct.pack("<I", 0) + encoded)
 
     def test_terminated_strings_still_parse(self):
-        self.assertEqual(_parse_string_pool(self.pool(b"\\x01\\x01A\\x00"),
+        self.assertEqual(_parse_string_pool(self.pool(b"\x01\x01A\x00"),
                                              0, 36, 28), ["A"])
-        utf16 = self.pool(b"\\x01\\x00A\\x00\\x00\\x00", utf8=False)
+        utf16 = self.pool(b"\x01\x00A\x00\x00\x00", utf8=False)
         self.assertEqual(_parse_string_pool(utf16, 0, len(utf16), 28), ["A"])
 
     def test_string_pool_rejects_missing_terminators(self):
         for encoded, utf8 in (
-            (b"\\x01\\x01A\\x7f", True),
-            (b"\\x01\\x00A\\x00\\x7f\\x00", False),
+            (b"\x01\x01A\x7f", True),
+            (b"\x01\x00A\x00\x7f\x00", False),
         ):
             with self.subTest(utf8=utf8):
                 pool = self.pool(encoded, utf8=utf8)
@@ -52,13 +52,13 @@ class BinaryManifestSafetyTest(unittest.TestCase):
                     _parse_string_pool(pool, 0, len(pool), 28)
 
     def test_string_pool_rejects_offset_array_overlap(self):
-        pool = self.pool(b"\\x01\\x01A\\x00", strings_start=28)
+        pool = self.pool(b"\x01\x01A\x00", strings_start=28)
         with self.assertRaisesRegex(ManifestError, "overlaps"):
             _parse_string_pool(pool, 0, len(pool), 28)
 
     def test_unclosed_manifest_element_fails_closed(self):
         # A valid string pool followed by a start tag with no matching end tag.
-        pool = self.pool(b"\\x08\\x08manifest\\x00")
+        pool = self.pool(b"\x08\x08manifest\x00")
         start = (struct.pack("<HHI", 0x0102, 16, 36)
                  + struct.pack("<II", 0, 0)
                  + struct.pack("<IIHHHHHH", 0xffffffff, 0, 20, 20, 0, 0, 0, 0))
