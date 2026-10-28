@@ -145,9 +145,26 @@ On a machine with an **actually delegated** cgroup parent, run
 `python3 tests/cgroup-kernel.py "$CGROUP_PARENT"` to validate real kernel
 membership, configured budgets, the detached child's membership before
 cleanup, and that it is no longer running after `cgroup.kill` and leaf
-removal. This real-kernel test requires explicit developer setup and
-has **not** been run on GitHub's non-delegated default runner; the CI unit
-test cannot substitute for it.
+removal. **The same probe now actively checks both controllers:** it creates
+a *separate* temporary ANX leaf with `pids.max=8` and verifies the kernel
+rejects excess threads (including an increase in `pids.events max`); then it
+creates another private leaf with `memory.max=64 MiB` and verifies that
+a child allocating 128 MiB is killed by SIGKILL with an increase in
+`memory.events oom_kill`. The reduced stress limits apply only inside
+the probe's private disposable leaves, **not** the delegated parent, other
+applications, or ANX's normal 512 MiB/64-task profile. This intentionally
+provokes a contained OOM event and should only be used on a development
+Linux host with sufficient headroom.
+
+CI runs `python3 tests/cgroup-probe-unit.py` to ensure fake event counters,
+missing thread denials, and absent OOM kills cannot generate false success.
+For a runner with an appropriate *pre-delegated* parent, configure the
+repository variable `ANX_CGROUP_TEST_PARENT` to its host path; the
+sandbox-kernel job then runs the **real** stress probe and fails if either
+controller is not demonstrably enforced. Without this configuration, CI
+prints an explicit *not tested* notice. GitHub's default hosted runner
+has **not** supplied such delegated parent, so green general CI alone is
+still **not** evidence of real cgroup memory/pids enforcement.
 `python3 tests/sandbox-timeout-smoke.py` verifies that a hung fake
 Bubblewrap process is killed after one second with status `124`, only
 one launch occurs, invalid options are rejected and ordinary exit codes
