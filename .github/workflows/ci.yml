@@ -50,6 +50,9 @@ jobs:
       - name: Validate opt-in cgroup v2 quotas and fail-closed cleanup (mock kernel)
         run: python3 tests/cgroup-unit.py
 
+      - name: Reject fake-success kernel cgroup quota probes (mock counters)
+        run: python3 tests/cgroup-probe-unit.py
+
       - name: Test secondary DEX extraction guards
         run: python3 tests/secondary-dex-unit.py
 
@@ -120,3 +123,12 @@ jobs:
           fi
       - name: Verify actual namespaces under privileged CI probe
         run: sudo -n python3 tests/sandbox-kernel.py
+      - name: Run delegated cgroup stress probe only when explicitly configured
+        env:
+          ANX_CGROUP_TEST_PARENT: ${{ vars.ANX_CGROUP_TEST_PARENT }}
+        run: |
+          if [[ -n "$ANX_CGROUP_TEST_PARENT" ]]; then
+            python3 tests/cgroup-kernel.py "$ANX_CGROUP_TEST_PARENT"
+          else
+            echo "::notice::Real cgroup memory/pids enforcement is NOT tested on this runner (no delegated parent configured)."
+          fi
