@@ -28,8 +28,9 @@ class ProbeValidationTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.leaf = Path(self.temp.name)
-        for name in ("pids.max", "memory.max"):
-            (self.leaf / name).write_text("", encoding="ascii")
+        for name in ("pids.max", "memory.max", "memory.swap.max",
+                     "memory.current", "memory.swap.current"):
+            (self.leaf / name).write_text("0", encoding="ascii")
         (self.leaf / "pids.events").write_text("max 0\n", encoding="ascii")
         (self.leaf / "memory.events").write_text(
             "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\n", encoding="ascii"
@@ -72,6 +73,13 @@ class ProbeValidationTest(unittest.TestCase):
         self.assertEqual(
             (self.leaf / "memory.max").read_text(), str(64 * 1024 * 1024)
         )
+        self.assertEqual((self.leaf / "memory.swap.max").read_text(), "0",
+                         "OOM probe must disallow swap only in its test leaf")
+
+    def test_memory_probe_rejects_missing_swap_controller(self):
+        (self.leaf / "memory.swap.max").unlink()
+        with self.assertRaisesRegex(AssertionError, "lacks memory.swap.max"):
+            probe.verify_memory_enforcement(self.leaf)
 
     def test_memory_false_positive_rejected_without_oom_event(self):
         fake = subprocess.CompletedProcess(

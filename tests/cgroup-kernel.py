@@ -133,6 +133,18 @@ def verify_pids_enforcement(leaf: Path) -> None:
 
 
 def verify_memory_enforcement(leaf: Path) -> None:
+    # A valid host may swap cold, one-time-written pages. Such a host can
+    # legitimately finish a 128 MiB allocation under memory.max=64 MiB
+    # without OOM. Remove swap only for THIS disposable stress-test leaf,
+    # so the test exercises physical memory enforcement deterministically.
+    # The actual ANX runtime is intentionally NOT changed by this probe.
+    swap = leaf / "memory.swap.max"
+    if not swap.is_file():
+        raise AssertionError("kernel lacks memory.swap.max; cannot assert a no-swap OOM probe")
+    swap.write_text("0", encoding="ascii")
+    if swap.read_text(encoding="ascii").strip() != "0":
+        raise AssertionError("kernel did not disable swap in private OOM test leaf")
+
     limit = leaf / "memory.max"
     limit.write_text(str(MEMORY_STRESS_MAX), encoding="ascii")
     if limit.read_text(encoding="ascii").strip() != str(MEMORY_STRESS_MAX):
@@ -144,9 +156,13 @@ def verify_memory_enforcement(leaf: Path) -> None:
     if (child.returncode != -signal.SIGKILL
             or "ANX_MEMORY_STARTED" not in child.stdout
             or after <= before):
+        current = (leaf / "memory.current").read_text(encoding="ascii").strip()
+        swap_current = (leaf / "memory.swap.current").read_text(
+            encoding="ascii").strip() if (leaf / "memory.swap.current").is_file() else "unknown"
         raise AssertionError(
             f"kernel memory.max OOM kill not confirmed (code={child.returncode}, "
-            f"events {before}->{after}): {child.stdout} {child.stderr}"
+            f"events {before}->{after}, memory.current={current}, "
+            f"swap.current={swap_current}): {child.stdout} {child.stderr}"
         )
 
 
