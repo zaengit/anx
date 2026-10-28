@@ -103,6 +103,21 @@ class DelegatedCgroupTest(unittest.TestCase):
                     self.fail("failed limit write must block process execution")
         self.assertFalse(list(self.parent.glob("anx-*")))
 
+    def test_wall_clock_timeout_still_kills_and_cleans_cgroup(self):
+        # subprocess.run reaps the timed-out direct child; leaving the scope
+        # must invoke cgroup.kill so detached descendants cannot persist.
+        m1, m2 = self.simulated_kernel()
+        with m1, m2:
+            with delegated_cgroup(self.parent, root=self.root) as leaf:
+                with self.assertRaises(subprocess.TimeoutExpired):
+                    subprocess.run(
+                        [sys.executable, "-c", "import time; time.sleep(30)"],
+                        preexec_fn=lambda: join_cgroup(leaf),
+                        timeout=0.15, check=False,
+                    )
+            self.assertFalse(leaf.exists())
+        self.assertEqual(list(self.parent.glob("anx-*")), [])
+
     def test_child_join_failure_never_executes(self):
         with tempfile.TemporaryDirectory() as directory:
             missing = Path(directory) / "missing" / "cgroup.procs"
