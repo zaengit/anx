@@ -92,7 +92,7 @@ class DelegatedCgroupTest(unittest.TestCase):
             return normal_write(path, value, *args, **kwargs)
 
         m1, m2 = self.simulated_kernel()
-        with m1, m2, mock.patch.object(Path, "write_text", side_effect=deny_memory):
+        with m1, m2, mock.patch.object(Path, "write_text", new=deny_memory):
             with self.assertRaisesRegex(PermissionError, "test-denied"):
                 with delegated_cgroup(self.parent, root=self.root):
                     self.fail("failed limit write must block process execution")
