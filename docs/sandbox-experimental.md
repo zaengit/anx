@@ -37,7 +37,43 @@ for this experimental profile and can reject otherwise valid large or
 long-running apps. They do **not** cap aggregate disk usage, resident memory,
 wall-clock time, the number of processes, network usage or I/O throughput.
 `RLIMIT_NOFILE` also does not replace a file-descriptor capability policy.
-A cgroup-based resource policy and hostile APK testing remain release blockers.
+Full cgroup deployment compatibility and hostile APK testing remain release blockers.
+
+## Optional delegated cgroup v2 (experimental)
+
+On Linux hosts with a **pre-existing writable, delegated cgroup v2 parent**
+with `memory` and `pids` enabled in `cgroup.subtree_control`, ANX can
+add a second, **explicitly requested** resource gate:
+
+```sh
+./anx run build/demo.apk --art /usr/bin/dalvikvm64 \\
+    --backend console --unsafe-host-execution --experimental-sandbox \\
+    --experimental-cgroup-parent "$CGROUP_PARENT"
+```
+
+The administrator/user must arrange an appropriate delegated child of
+`/sys/fs/cgroup` in advance and set `CGROUP_PARENT` to its real path.
+ANX never enables controllers, modifies the host's root cgroup, invokes
+sudo, or weakens AppArmor. **No automatic cgroup fallback** is permitted.
+
+Before launching Bubblewrap, ANX creates a fresh randomly named leaf under
+that delegated parent and writes/verifies `memory.max=536870912` (512 MiB)
+and `pids.max=64` (Linux tasks, including threads). Its pre-exec child
+joins that leaf via `cgroup.procs`, after applying the existing rlimits;
+failure aborts launch before untrusted bytecode can execute. On exit or
+interruption ANX writes `1` to `cgroup.kill`, verifies
+`cgroup.events: populated 0`, and removes only the ANX-created leaf.
+If the kernel lacks `cgroup.kill`, delegation is missing, or any setup or
+cleanup step fails, ANX reports an error instead of retrying without limits.
+
+This is an **opt-in developer feature**, not a general host distribution
+profile. The baseline experimental Bubblewrap mode without
+`--experimental-cgroup-parent` does *not* gain RAM or aggregate task
+budgets. Even with cgroup v2 enabled, there is no wall-clock deadline,
+disk capacity quota, I/O rate limit, device mediation, seccomp policy,
+hostile-APK safety certification, or multi-distribution verification.
+Linux systems with a read-only/non-delegated cgroup hierarchy reject
+the option as unsupported; do not disable security protections to run it.
 
 ```sh
 sudo apt install bubblewrap
@@ -72,7 +108,12 @@ variable, a host stdin file and a deliberately inheritable file descriptor.
 It confirms all three are absent in the helper and checks the inherited
 resource limits. `python3 tests/sandbox-limits.py` additionally verifies
 resource ceilings, preservation of stricter inherited limits, unchanged
-parent limits and fail-closed setup. The real `tests/sandbox-kernel.py`
+parent limits and fail-closed setup. `python3 tests/cgroup-unit.py` checks
+controller delegation, private leaf setup, join errors, forced failures and
+cleanup using a **mock cgroup filesystem**; it does not prove real kernel
+memory/process enforcement. `tests/sandbox-launcher-smoke.py` also checks
+that the CLI rejects an unavailable cgroup rather than launching Bubblewrap.
+The real `tests/sandbox-kernel.py`
 probe checks those budgets inside the Bubblewrap guest on the privileged
 CI runner. The helper test is not a kernel namespace isolation test.
 
