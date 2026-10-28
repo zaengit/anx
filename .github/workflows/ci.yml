@@ -132,5 +132,5 @@ jobs:
           if [[ -n "$ANX_CGROUP_TEST_PARENT" ]]; then
             python3 tests/cgroup-kernel.py "$ANX_CGROUP_TEST_PARENT"
           else
-            echo "::notice::Real cgroup memory/pids enforcement is NOT tested on this runner (no delegated parent configured)."
+            echo "::notice::Optional externally delegated cgroup probe NOT TESTED (ANX_CGROUP_TEST_PARENT unset); the privileged systemd real-kernel probe above is separate."
           fi
