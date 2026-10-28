@@ -8,11 +8,40 @@ from __future__ import annotations
 from pathlib import Path
 import os
 import re
+import resource
 import shutil
 
 
 class SandboxError(ValueError):
     """The sandbox profile cannot enforce its expected preconditions."""
+
+
+# Applied to the *child* Bubblewrap process (and inherited by its descendants),
+# never to the invoking shell or ANX launcher. Conservative fixed budgets for
+# the current console-only development profile; not a complete resource quota.
+SANDBOX_RESOURCE_LIMITS = (
+    (resource.RLIMIT_CORE, 0),
+    (resource.RLIMIT_NOFILE, 256),
+    (resource.RLIMIT_FSIZE, 256 * 1024 * 1024),
+    (resource.RLIMIT_CPU, 180),
+)
+
+
+def apply_sandbox_resource_limits() -> None:
+    """Tighten kernel soft *and hard* rlimits without relaxing host policy.
+
+    Intended only as subprocess.Popen(preexec_fn=...) in ANX's single-threaded
+    Linux CLI. Any failure aborts the child before exec; do not fall back to
+    launching ART without the sandbox.
+    """
+    for kind, ceiling in SANDBOX_RESOURCE_LIMITS:
+        soft, hard = resource.getrlimit(kind)
+
+        def capped(current: int) -> int:
+            return (ceiling if current == resource.RLIM_INFINITY
+                    else min(current, ceiling))
+
+        resource.setrlimit(kind, (capped(soft), capped(hard)))
 
 
 def wrap_console_art(

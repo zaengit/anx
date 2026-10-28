@@ -11,7 +11,7 @@ import sys
 
 from apk_inspector import ApkError, format_metadata, inspect_apk
 from native_libraries import NativeLibraryError, extract_native_libraries
-from sandbox import SandboxError, wrap_console_art
+from sandbox import SandboxError, apply_sandbox_resource_limits, wrap_console_art
 from secondary_dex import SecondaryDexError, extract_secondary_dex
 
 
@@ -154,8 +154,13 @@ def _run(apk: Path, art: str, framework_dex: Path, android_data: Path | None,
                 command, env=launch_env, check=False,
                 close_fds=True,
                 stdin=subprocess.DEVNULL if experimental_sandbox else None,
+                # Linux-only single-threaded CLI: child limits must be active
+                # BEFORE bwrap starts, never on the parent process.
+                preexec_fn=(apply_sandbox_resource_limits
+                            if experimental_sandbox else None),
             ).returncode
-    except (OSError, NativeLibraryError, SecondaryDexError, SandboxError) as exc:
+    except (OSError, subprocess.SubprocessError, NativeLibraryError,
+            SecondaryDexError, SandboxError) as exc:
         print(f"anx run: host execution setup failed: {exc}", file=sys.stderr)
         return 1
 

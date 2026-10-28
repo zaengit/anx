@@ -14,13 +14,24 @@ import sys
 import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from sandbox import wrap_console_art
+from sandbox import apply_sandbox_resource_limits, wrap_console_art
 
 GUEST_CHECK = r"""
 import os
 from pathlib import Path
+import resource
 import socket
 import sys
+
+# These are kernel-enforced limits inherited by the actual bwrap guest.
+for kind, ceiling in (
+    (resource.RLIMIT_CORE, 0),
+    (resource.RLIMIT_NOFILE, 256),
+    (resource.RLIMIT_FSIZE, 256 * 1024 * 1024),
+    (resource.RLIMIT_CPU, 180),
+):
+    soft, hard = resource.getrlimit(kind)
+    assert 0 <= soft <= ceiling and 0 <= hard <= ceiling, "missing resource budget"
 
 host_netns, host_mntns, secret_path = sys.argv[1:]
 assert os.readlink("/proc/self/ns/net") != host_netns, "host network namespace shared"
@@ -102,8 +113,11 @@ def main() -> int:
             ]
             environment = os.environ.copy()
             environment["ANX_PROBE_SECRET"] = "must-not-reach-sandbox"
-            result = subprocess.run(command, capture_output=True, text=True,
-                                    timeout=20, env=environment, check=False)
+            result = subprocess.run(
+                command, capture_output=True, text=True, timeout=20,
+                env=environment, check=False,
+                preexec_fn=apply_sandbox_resource_limits,
+            )
             if result.returncode != 0:
                 # Ubuntu/AppArmor and CI kernels may reject user or network
                 # namespace setup. Report this separately; do NOT retry ART.
@@ -136,8 +150,8 @@ def main() -> int:
                 return 1
         finally:
             marker.unlink(missing_ok=True)
-    print("[PASS] Real Bubblewrap: separate network/mount namespaces, "
-          "no host home/env, read-only APK/runtime, per-package ART and app-data persistence.")
+    print("[PASS] Real Bubblewrap: isolated mounts/network and inherited CPU/FD/"
+          "file-size/core limits; per-package app and ART-cache persistence.")
     return 0
 
 if __name__ == "__main__":

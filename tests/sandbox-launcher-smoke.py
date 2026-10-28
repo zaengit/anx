@@ -45,6 +45,12 @@ def main() -> int:
                 "if [ -n \"$ANDROID_DATA\" ]; then exit 95; fi\n"
                 f"if [ -e /proc/self/fd/{inherited_fd} ]; then exit 92; fi\n"
                 "if [ \"$(readlink /proc/self/fd/0)\" != /dev/null ]; then exit 93; fi\n"
+                "if ! /usr/bin/python3 -c 'import resource; caps = "
+                "[(resource.RLIMIT_CORE, 0), (resource.RLIMIT_NOFILE, 256), "
+                "(resource.RLIMIT_FSIZE, 268435456), (resource.RLIMIT_CPU, 180)]; "
+                "assert all(0 <= resource.getrlimit(k)[0] <= c and "
+                "0 <= resource.getrlimit(k)[1] <= c for k,c in caps)'; "
+                "then exit 96; fi\n"
                 "exit 42\n",
                 encoding="utf-8",
             )
@@ -85,7 +91,7 @@ def main() -> int:
             print("[FAIL] CLI did not launch the experimental helper", file=sys.stderr)
             return 1
     print("[PASS] Helper gets minimal environment, /dev/null stdin, "
-          "and no inherited secret file descriptor.")
+          "no inherited secret FD, and bounded kernel resource limits.")
     return 0
 
 
