@@ -37,6 +37,10 @@ class DelegatedCgroupTest(unittest.TestCase):
         self.real_write_text(directory / "cgroup.events", "populated 0\n")
 
     def fake_rmdir(self, path):
+        kill = Path(path) / "cgroup.kill"
+        if kill.exists():
+            self.assertEqual(kill.read_text(), "1",
+                             "descendants must be killed before leaf removal")
         for entry in Path(path).iterdir():
             entry.unlink()
         self.real_rmdir(path)
